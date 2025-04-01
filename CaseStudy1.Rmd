@@ -727,7 +727,7 @@ kwtest <- function(x, g, ...) {
 ```
 
 
-### a) Pseudocode
+### a. Pseudocode
 
 -   If x is a list:
 
@@ -774,7 +774,7 @@ kwtest <- function(x, g, ...) {
 -   return named list holding statistic=statistic, degrees of freedom=k-1, p-val=p-val, method="Kruskal-Wallis rank sum test"
 
 
-### b) Samle Calls
+### b. Samle Calls
 
 **i) Function call with list x**
 
@@ -799,7 +799,7 @@ result_vector
 As expected/necessary, both calls return the same result: A p value of 0.032, indicating that the null hypothesis of equal medians across groups can be rejected at the 0.05 significance level.
 
 
-### c) Refactored Code (Performance Improvements)
+### c. Refactored Code (Performance Improvements)
 
 Here we refactor the code, trying to increase performance, by restricting the input to be a numeric variable as x and its group membership as g. This way, we can reduce the number of checks and conversions needed.
 
@@ -850,7 +850,7 @@ kwtest_num(x, g)
 Again, we get a p-value of 0.032, indicating that the refactored function works correctly. 
 
 
-### d) Matrix version for original kwtest function
+### d. Matrix version for original kwtest function
 
 Here, we write a wrapper function around the original implementation, to make it usable for multiple repetitions of the test. 
 
@@ -876,7 +876,7 @@ repeated_kwtest(X, grp)[1:10] # only show first 10 results as example
 ```
 
 
-### e) Matrix version for optimized kwtest function
+### e. Matrix version for optimized kwtest function
 
 We do the same for the optimized version of the function.
 
@@ -893,7 +893,7 @@ repeated_kwtest_opt <- function(X, g) {
 repeated_kwtest_opt(X, grp)[1:10] # only show first 10 results as example
 ```
 
-### f) Comparison via benchmark
+### f. Comparison via benchmark
 
 To compare the runtimes of the original and optimized versions, we use the `microbenchmark` package.
 
@@ -920,7 +920,7 @@ autoplot(runtime_opt) + ggtitle("Benchmark for optimized kwtest function")
 The results show, that while the methods have a roughly equal median, we get differences in the means. For the original function we get a mean runtime of 681 ms, which the optimized version is able to decrease to 634 ms. Although, this reduction of around 7 % is not very large, it is still a significant improvement. Also we note from the plots, that the optimized version has fewer worst-case/very slow occurences, while the original version has a long tail up to over 900 ms.
 
 
-### g) Vectorized version of kwtest function
+### g. Vectorized version of kwtest function
 
 Lastly, we try to increase performance even further by vectorizing the function. We do so by exchanging the `tapply` calls with `rowsum` and `table` calls.
 
