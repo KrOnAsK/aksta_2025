@@ -144,10 +144,9 @@ The ratio of consecutive Fibonacci numbers converges rather quickly to the golde
 
 ## 2. Gamma Function
 
-
 ## 3. Weak Law of Large Numbers
 
-The law of large numbers states that if you repeat an experiment independently a large number of times and average the result, what you obtain should be close to the expected value. 
+The law of large numbers states that if you repeat an experiment independently a large number of times and average the result, what you obtain should be close to the expected value.
 
 Formally, the weak law of large numbers states that if $X_1, X_2, \ldots, X_n$ are independently and identically distributed (iid) random variables with a finite expected value $E(X_i) = \mu < \infty$, then, for any $\epsilon > 0$:
 
@@ -310,7 +309,7 @@ while (proportion_outside >= 0.05) {
 cat("The loop terminated at n =", n_current, "with proportion outside epsilon =", proportion_outside, "\n")
 ```
 
-The while loop stops when the proportion of replications where the difference between the running average and the expected value lies outside the interval $[-\epsilon, \epsilon]$ is less than 0.05. 
+The while loop stops when the proportion of replications where the difference between the running average and the expected value lies outside the interval $[-\epsilon, \epsilon]$ is less than 0.05.
 
 With $\epsilon = 0.01$, the loop terminated when this criterion was met, meaning that at least 95% of our replications had running averages within 0.01 of the expected value 3.5.
 
@@ -361,3 +360,360 @@ The weak law of large numbers does not hold for the Cauchy distribution because 
 This happens because the Cauchy distribution has such heavy tails that extreme values occur frequently enough to prevent the sample mean from stabilizing. Each new extreme value can dramatically shift the running average, regardless of how many samples have already been collected.
 
 This is in stark contrast to the die rolls, where the running average clearly converged to the expected value as the number of rolls increased.
+
+## 5. Readable and Efficient Code
+
+### a. Explanation
+
+**(i)** In the first provided chunk of code, we start by initializing two variables x and z with 100 values of a normal distribution and then, although uncorrelated, fit a linear model of x on z. We then apply the sinus function to the residuals of the model, update x with it and refit the model. This step is repeated 4 times. To prevent x from holding only small values, a threshold is introduced and checked in each iteration. In the end, the transformed x vector is returned.
+
+**(ii)** In the second provided code chunk, again we initialize two variables with a sample from a normal distribution. This time, however they are correlated. The code then evaluates the linear model of y on x in a 4-fold Cross validation manner. First we fit the model on all indices but 0-250, then we make predictions at these indices and calculate the RMSE. We repeat this three more times until all 1000 indices have been part of the test set once. We return the vector r, which holds the 4 RMSE values.
+
+### b. Ideas for Improvement
+
+-   In both code chunks, large parts are repitive and could be replaced by a loop. In particular we could use a loop for the residual computation and fitting process in (i) and for the train-predict-evaluate procedure in (ii).
+-   In the loops we could replace hard coded values with variables with descriptive names, e.g. "threshold". Then we can provide variable descriptions at the initialization of these variables and explanations where they are updated.
+-   We should use comments to show the purpose of each step and the expected outcome.
+
+### c. Refactored Code
+
+**(i)**
+
+```{r}
+x_transformation <- function(){
+  #seed for reproducibility
+  set.seed(1)  
+  
+  #initialize x and z from normal distribution (100 values)
+  x <- rnorm(100)      
+  z <- rnorm(100)      
+  
+  #4 iterations of transformation
+  for(i in 1:4){      
+    
+    #prevent diminishing values of x
+    threshold <- i * 0.001
+    if(sum(x >= threshold) < i) stop(paste("Step", i, "requires", i, "obs >= ", thr))
+    
+    #fit linear model of x on z
+    fit <- lm(x ~ z)
+    
+    #update x with sin(residuals), scale and add offset
+    x <- i * sin(fit$residuals) + 0.01 * i  
+  }
+  #return transformed x
+  return(x)
+}
+
+x_transformation()
+```
+
+**(ii)**
+
+```{r}
+lm_cv_4fold <- function(){
+  # seed for reproducibility
+  set.seed(1)
+  
+  #initialize x and y from normal distribution (1000 values)
+  x <- rnorm(1000)
+  y <- 2 + x + rnorm(1000)
+  df <- data.frame(x, y)
+  r <- c()
+  
+  for(i in 1:4){
+    #fit linear model of y on x on i-th quarter
+    test <- ((i-1)*250+1):(i*250) # this is the 11-th line but it makes the code much more readable!
+    fit <- lm(y ~ x, data = df[-test,])
+    
+    #predict y at test_indices
+    p <- predict(fit, newdata = df[test,])
+    
+    #calculate RMSE and append
+    r <- c(r, sqrt(mean((df$y[test] - p)^2)))
+  }
+  return(r)
+}
+lm_cv_4fold()
+```
+
+## 6. Measuring and Improving Performance
+
+
+```{r}
+kwtest <- function(x, g, ...) {
+  if (is.list(x)) {
+    if (length(x) < 2L)
+      stop("'x' must be a list with at least 2 elements")
+    if (!missing(g))
+    warning("'x' is a list, so ignoring argument 'g'")
+    if (!all(sapply(x, is.numeric)))
+    warning("some elements of 'x' are not numeric and will be coerced to numeric")
+    k <- length(x)
+    l <- lengths(x)
+    if (any(l == 0L))
+    stop("all groups must contain data")
+    g <- factor(rep.int(seq_len(k), l))
+    x <- unlist(x)
+  }
+  else{
+    if (length(x) != length(g))
+    stop("'x' and 'g' must have the same length")
+    g <- factor(g)
+    k <- nlevels(g)
+    if (k < 2L)
+    stop("all observations are in the same group")
+  }
+  
+  n <- length(x)
+  if (n < 2L)
+    stop("not enough observations")
+  
+  r <- rank(x)
+  TIES <- table(x)
+  
+  STATISTIC <- sum(tapply(r, g, sum)^2/tapply(r, g, length))
+  STATISTIC <- ((12 * STATISTIC/(n * (n + 1)) - 3 * (n + 1))/(1 -
+  sum(TIES^3 - TIES)/(n^3 - n)))
+  
+  PARAMETER <- k - 1L
+  PVAL <- pchisq(STATISTIC, PARAMETER, lower.tail = FALSE)
+  
+  names(STATISTIC) <- "Kruskal-Wallis chi-squared"
+  names(PARAMETER) <- "df"
+  
+  RVAL <- list(statistic = STATISTIC, parameter = PARAMETER,
+  p.value = PVAL, method = "Kruskal-Wallis rank sum test")
+}
+```
+
+
+### a) Pseudocode
+
+-   If x is a list:
+
+    -   Ensure x has \>=2 non-empty elements/groups
+
+    -   Warn about coercion, if x has non-numeric elements
+
+    -   Warn about ignoration of g, if it is set
+
+    -   Flatten x into single vector
+
+    -   Create corresponding group labels g
+
+-   Else:
+
+    -   Ensure length(x) = length(g)
+
+    -   Convert g to factor
+
+    -   Stop if only one group
+
+-   n = #overall observations
+
+-   Ensure n \>= 2
+
+-   r = ranks(x)
+
+-   Compute TIES = table(x), i.e. #appearances of each value
+
+-   For each group
+
+    -   calculate sum of ranks
+
+    -   calculate elements in group
+
+    -   statistic_group_i = sum-of-ranks^2^ / #elements-in-group
+
+-   statistic = 12\*sum_across_groups(statistic_group_i) / (n(n+1)) - 3(n+1))
+
+-   statistic = statistic / (1-sum(ties^3^ - ties)/(n^3^ - n)) \# adjust for ties
+
+-   p-val = p-value from chi-squared distribution with degrees of freedom=k-1
+
+-   return named list holding statistic=statistic, degrees of freedom=k-1, p-val=p-val, method="Kruskal-Wallis rank sum test"
+
+
+### b) Samle Calls
+
+**i) Function call with list x**
+
+```{r}
+group1 <- c(5.1, 5.5, 5.3)
+group2 <- c(6.2, 6.4, 6.1)
+group3 <- c(5.9, 6.0, 6.1)
+
+result_list <- kwtest(list(group1, group2, group3))
+result_list
+```
+**ii) FUnction call with vector x and groups g**
+
+```{r}
+x <- c(5.1, 5.5, 5.3, 6.2, 6.4, 6.1, 5.9, 6.0, 6.1)
+g <- c(1, 1, 1, 2, 2, 2, 3, 3, 3)
+
+result_vector <- kwtest(x, g)
+result_vector
+```
+
+
+### c) Refactored Code (Performance Improvements)
+
+```{r}
+kwtest_num <- function(x, g, ...) {
+  if (length(x) != length(g))
+    stop("'x' and 'g' must have the same length")
+  if(!is.numeric(x)) 
+    stop("'x' must be numeric")
+  g <- factor(g)
+  k <- nlevels(g)
+  if (k < 2L)
+    stop("all observations are in the same group")
+  
+  n <- length(x)
+  if (n < 2L)
+    stop("not enough observations")
+  
+  r <- rank(x)
+  TIES <- table(x)
+  
+  rank_sums = tapply(r, g, sum)
+  group_sizes = tapply(r, g, length)
+  
+  STATISTIC <- sum(rank_sums^2/group_sizes)
+  STATISTIC <- ((12 * STATISTIC/(n * (n + 1)) - 3 * (n + 1)))
+  
+  # Adjust for ties
+  STATISTIC <- STATISTIC / (1 - sum(TIES^3 - TIES)/(n^3 - n))
+  
+  PARAMETER <- k - 1L
+  PVAL <- pchisq(STATISTIC, PARAMETER, lower.tail = FALSE)
+  
+  names(STATISTIC) <- "Kruskal-Wallis chi-squared"
+  names(PARAMETER) <- "df"
+  
+  RVAL <- list(statistic = STATISTIC, parameter = PARAMETER,
+  p.value = PVAL, method = "Kruskal-Wallis rank sum test")
+  
+  return (RVAL)
+}
+```
+
+```{r}
+x <- c(5.1, 5.5, 5.3, 6.2, 6.4, 6.1, 5.9, 6.0, 6.1)
+g <- c(1, 1, 1, 2, 2, 2, 3, 3, 3)
+
+kwtest_num(x, g)
+```
+
+### d) Matrix version for original kwtest function
+
+```{r}
+set.seed(1234)
+m <- 1000 # number of repetitions
+n <- 50 # number of individuals
+X <- matrix(rt(m * n, df = 10), nrow = m)
+grp <- rep(1:3, c(20, 20, 10))
+```
+
+```{r}
+repeated_kwtest <- function(X, g) {
+  res <- apply(X, 1, function(x) {
+    stat <- stats:::kruskal.test.default(x, g)
+    return(stat$statistic)
+  }
+  )
+  return(res)
+}
+```
+
+
+### e) Matrix version for optimized kwtest function
+
+```{r}
+repeated_kwtest_opt <- function(X, g) {
+  res <- apply(X, 1, function(x) {
+    stat <- kwtest_opt(x, g)
+    return(stat$statistic)
+  }
+  )
+  return(res)
+}
+```
+
+### f) Comparison via benchmark
+
+```{r}
+library(microbenchmark)
+
+# Benchmark for original kwtest function
+runtime_original <- microbenchmark(
+  repeated_kwtest(X, grp),
+  times = 5
+)
+runtime_opt <- microbenchmark(
+  repeated_kwtest_opt(X, grp),
+  times = 5
+)
+
+print(runtime_original)
+print(runtime_opt)
+
+# Plot the results
+autoplot(benchmark_original) + ggtitle("Benchmark for original kwtest function")
+autoplot(benchmark_optimized) + ggtitle("Benchmark for optimized kwtest function")
+```
+
+
+### g) Vectorized version of kwtest function
+
+```{r}
+kwtest_vec <- function(x, g, ...) {
+  if (length(x) != length(g))
+    stop("'x' and 'g' must have the same length")
+  if(!is.numeric(x)) 
+    stop("'x' must be numeric")
+  g <- factor(g)
+  k <- nlevels(g)
+  if (k < 2L)
+    stop("all observations are in the same group")
+  
+  n <- length(x)
+  if (n < 2L)
+    stop("not enough observations")
+  
+  r <- rank(x)
+  TIES <- table(x)
+  
+  rank_sums = rowsum(r, g)
+  group_sizes = table(g)
+  
+  STATISTIC <- sum(rank_sums[,1]^2/group_sizes)
+  STATISTIC <- ((12 * STATISTIC/(n * (n + 1)) - 3 * (n + 1))/(1 -
+  sum(TIES^3 - TIES)/(n^3 - n)))
+  
+  PARAMETER <- k - 1L
+  PVAL <- pchisq(STATISTIC, PARAMETER, lower.tail = FALSE)
+  
+  names(STATISTIC) <- "Kruskal-Wallis chi-squared"
+  names(PARAMETER) <- "df"
+  
+  RVAL <- list(statistic = STATISTIC, parameter = PARAMETER,
+  p.value = PVAL, method = "Kruskal-Wallis rank sum test")
+  
+  return (RVAL)
+}
+```
+
+
+Comparison:
+
+```{r}  
+runtime_vec <- microbenchmark(
+  repeated_kwtest_vec(X, grp),
+  times = 5
+)
+
+print(runtime_vec)
+```
