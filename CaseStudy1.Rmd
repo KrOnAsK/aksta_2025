@@ -599,13 +599,13 @@ Thus, we can say that for larger values of *n*, the distribution of $Z_n$ become
 
 ### a. Explanation
 
-**(i)** In the first provided chunk of code, we start by initializing two variables x and z with 100 values of a normal distribution and then, although uncorrelated, fit a linear model of x on z. We then apply the sinus function to the residuals of the model, update x with it and refit the model. This step is repeated 4 times. To prevent x from holding only small values, a threshold is introduced and checked in each iteration. In the end, the transformed x vector is returned.
+**(i)** In the first provided chunk of code, we start by initializing two variables x and z with 100 values of a normal distribution and then, although uncorrelated, fit a linear model of x on z. We then apply the sinus function to the residuals of the model, add a little offset, update x with it and refit the model. This step is repeated 4 times. To prevent x from holding only small values, a threshold is introduced and checked in each iteration. In the end, the transformed x vector is returned.
 
 **(ii)** In the second provided code chunk, again we initialize two variables with a sample from a normal distribution. This time, however they are correlated. The code then evaluates the linear model of y on x in a 4-fold Cross validation manner. First we fit the model on all indices but 0-250, then we make predictions at these indices and calculate the RMSE. We repeat this three more times until all 1000 indices have been part of the test set once. We return the vector r, which holds the 4 RMSE values.
 
 ### b. Ideas for Improvement
 
--   In both code chunks, large parts are repitive and could be replaced by a loop. In particular we could use a loop for the residual computation and fitting process in (i) and for the train-predict-evaluate procedure in (ii).
+-   In both code chunks, large parts are repetitive and could be replaced by a loop. In particular we could use a loop for the residual computation and fitting process in (i) and for the train-predict-evaluate procedure in (ii).
 -   In the loops we could replace hard coded values with variables with descriptive names, e.g. "threshold". Then we can provide variable descriptions at the initialization of these variables and explanations where they are updated.
 -   We should use comments to show the purpose of each step and the expected outcome.
 
@@ -644,11 +644,13 @@ x_transformation()
 
 **(ii)**
 
+
 ```{r}
+# seed for reproducibility
+set.seed(1)
+
+
 lm_cv_4fold <- function(){
-  # seed for reproducibility
-  set.seed(1)
-  
   #initialize x and y from normal distribution (1000 values)
   x <- rnorm(1000)
   y <- 2 + x + rnorm(1000)
@@ -656,8 +658,10 @@ lm_cv_4fold <- function(){
   r <- c()
   
   for(i in 1:4){
-    #fit linear model of y on x on i-th quarter
-    test <- ((i-1)*250+1):(i*250) # this is the 11-th line but it makes the code much more readable!
+    # test set is the i-th quarter
+    test <- ((i-1)*250+1):(i*250)
+    
+    # fit linear model on training set
     fit <- lm(y ~ x, data = df[-test,])
     
     #predict y at test_indices
@@ -673,6 +677,7 @@ lm_cv_4fold()
 
 ## 6. Measuring and Improving Performance
 
+For this task, we were given the following implementation of a Kruskal-Wallis rank sum test in R:
 
 ```{r}
 kwtest <- function(x, g, ...) {
@@ -774,9 +779,9 @@ kwtest <- function(x, g, ...) {
 **i) Function call with list x**
 
 ```{r}
-group1 <- c(5.1, 5.5, 5.3)
-group2 <- c(6.2, 6.4, 6.1)
-group3 <- c(5.9, 6.0, 6.1)
+group1 <- c(8.1, 8.5, 8.3)
+group2 <- c(9.2, 9.4, 9.1)
+group3 <- c(8.9, 9.0, 9.1)
 
 result_list <- kwtest(list(group1, group2, group3))
 result_list
@@ -784,15 +789,19 @@ result_list
 **ii) FUnction call with vector x and groups g**
 
 ```{r}
-x <- c(5.1, 5.5, 5.3, 6.2, 6.4, 6.1, 5.9, 6.0, 6.1)
+x <- c(8.1, 8.5, 8.3, 9.2, 9.4, 9.1, 8.9, 9.0, 9.1)
 g <- c(1, 1, 1, 2, 2, 2, 3, 3, 3)
 
 result_vector <- kwtest(x, g)
 result_vector
 ```
 
+As expected/necessary, both calls return the same result: A p value of 0.032, indicating that the null hypothesis of equal medians across groups can be rejected at the 0.05 significance level.
+
 
 ### c) Refactored Code (Performance Improvements)
+
+Here we refactor the code, trying to increase performance, by restricting the input to be a numeric variable as x and its group membership as g. This way, we can reduce the number of checks and conversions needed.
 
 ```{r}
 kwtest_num <- function(x, g, ...) {
@@ -835,13 +844,15 @@ kwtest_num <- function(x, g, ...) {
 ```
 
 ```{r}
-x <- c(5.1, 5.5, 5.3, 6.2, 6.4, 6.1, 5.9, 6.0, 6.1)
-g <- c(1, 1, 1, 2, 2, 2, 3, 3, 3)
-
 kwtest_num(x, g)
 ```
 
+Again, we get a p-value of 0.032, indicating that the refactored function works correctly. 
+
+
 ### d) Matrix version for original kwtest function
+
+Here, we write a wrapper function around the original implementation, to make it usable for multiple repetitions of the test. 
 
 ```{r}
 set.seed(1234)
@@ -860,10 +871,14 @@ repeated_kwtest <- function(X, g) {
   )
   return(res)
 }
+
+repeated_kwtest(X, grp)[1:10] # only show first 10 results as example
 ```
 
 
 ### e) Matrix version for optimized kwtest function
+
+We do the same for the optimized version of the function.
 
 ```{r}
 repeated_kwtest_opt <- function(X, g) {
@@ -874,33 +889,40 @@ repeated_kwtest_opt <- function(X, g) {
   )
   return(res)
 }
+
+repeated_kwtest_opt(X, grp)[1:10] # only show first 10 results as example
 ```
 
 ### f) Comparison via benchmark
 
+To compare the runtimes of the original and optimized versions, we use the `microbenchmark` package.
+
 ```{r}
 library(microbenchmark)
 
-# Benchmark for original kwtest function
-runtime_original <- microbenchmark(
+runtime <- microbenchmark(
   repeated_kwtest(X, grp),
-  times = 5
+  times = 20
 )
 runtime_opt <- microbenchmark(
   repeated_kwtest_opt(X, grp),
-  times = 5
+  times = 20
 )
 
-print(runtime_original)
+print(runtime)
 print(runtime_opt)
 
 # Plot the results
-autoplot(benchmark_original) + ggtitle("Benchmark for original kwtest function")
-autoplot(benchmark_optimized) + ggtitle("Benchmark for optimized kwtest function")
+autoplot(runtime) + ggtitle("Benchmark for original kwtest function")
+autoplot(runtime_opt) + ggtitle("Benchmark for optimized kwtest function")
 ```
+
+The results show, that while the methods have a roughly equal median, we get differences in the means. For the original function we get a mean runtime of 681 ms, which the optimized version is able to decrease to 634 ms. Although, this reduction of around 7 % is not very large, it is still a significant improvement. Also we note from the plots, that the optimized version has fewer worst-case/very slow occurences, while the original version has a long tail up to over 900 ms.
 
 
 ### g) Vectorized version of kwtest function
+
+Lastly, we try to increase performance even further by vectorizing the function. We do so by exchanging the `tapply` calls with `rowsum` and `table` calls.
 
 ```{r}
 kwtest_vec <- function(x, g, ...) {
@@ -938,17 +960,32 @@ kwtest_vec <- function(x, g, ...) {
   
   return (RVAL)
 }
+
+repeated_kwtest_vec <- function(X, g) {
+  res <- apply(X, 1, function(x) {
+    stat <- kwtest_vec(x, g)
+    return(stat$statistic)
+  }
+  )
+  return(res)
+}
+
 ```
 
-
-Comparison:
 
 ```{r}  
 runtime_vec <- microbenchmark(
   repeated_kwtest_vec(X, grp),
-  times = 5
+  times = 20
 )
 
 print(runtime_vec)
+
+autoplot(runtime_vec) + ggtitle("Benchmark for vectorized kwtest function")
 ```
 
+Against our expectations, the vectorized version is slower than the optimized version. The mean runtime is around 900 ms, which is significantly slower than the optimized and original version. 
+
+We think that one reason for this could be the calls to `rowsum` and `table`. As the example is rather small, the overhead of these functions might be more significant than the gain from vectorization.
+
+With a large number of groups, the vectorized version might be more efficient, as it avoids the repeated calculation of the rank sums for each group. However, in our case, the optimized version is the fastest.
