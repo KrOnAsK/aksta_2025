@@ -478,7 +478,7 @@ $$Var(\bar{X}_n) = \frac{1}{n^2} [Var(X_1) + Var(X_2) + \cdots + Var(X_n)]$$
 
 Since all random variables are independent and identically distributed, they all have the same variance and we receive:
 
-$$Var(\bar{X}_n\right) = \frac{1}{n^2} (\sigma^2 + \sigma^2 + \cdots + \sigma^2) = \frac{n\sigma^2}{n^2} = \frac{\sigma^2}{n}$$
+$$Var(\bar{X}_n) = \frac{1}{n^2} (\sigma^2 + \sigma^2 + \cdots + \sigma^2) = \frac{n\sigma^2}{n^2} = \frac{\sigma^2}{n}$$
 
 So, as result we get:
 
