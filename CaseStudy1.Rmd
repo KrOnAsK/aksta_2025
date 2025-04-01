@@ -232,7 +232,6 @@ plot(n_values_100, ratio_values_100,
      xlab = "n", 
      ylab = expression(rho[n] / sqrt(n)),
      main = "100 values")
-
 ```
 At the beginning, we have plotted 5000 different n values and received a function as result that is going towards ~0,4 on the y-aaxis. Plotting the same function with only 100 different values for n, we received a function that is going slower towards 0,4 on the y-axis than the function from the 5000-amount sample. Looking o especially the plot with 5000 different numbers of n, I would guess that the limit for the function for $n \to \infty$ is 0,4, as for larger values the function converges towards that value.
 
@@ -452,3 +451,145 @@ The weak law of large numbers does not hold for the Cauchy distribution because 
 This happens because the Cauchy distribution has such heavy tails that extreme values occur frequently enough to prevent the sample mean from stabilizing. Each new extreme value can dramatically shift the running average, regardless of how many samples have already been collected.
 
 This is in stark contrast to the die rolls, where the running average clearly converged to the expected value as the number of rolls increased.
+
+## 4. Central limit theorem
+
+$a)$
+First, we will derive the expected value of the sample mean $\bar{X}_n$:
+
+If we put $\bar{X}_n$ inside the expectation operator $E()$, we can apply linearity. Since $\bar{X}_n = \frac{X_1 + X_2 + \cdots + X_n}{n}$, we can put it inside the expectation operator receiving $E(\bar{X}_n) = E\left(\frac{X_1 + X_2 + \cdots + X_n}{n}\right)$. Applying linearity, we can reshape the expectation operator, receiving 
+
+$$E\left(\bar{X}_n\right) = \frac{1}{n}\Big[E(X_1) + E(X_2) + \cdots + E(X_n)\Big]$$
+Since all $X_i$ are identically and idenpendently distributed, all of them have the same mean, resulting in $E(X_1) = E(X_2) = E(X_n) = \mu$. With that, we can use the mean in the calculation of the expected operator: $E(\bar{X_n}) = \frac{1}{n}(\mu + \mu + \cdots + \mu) = \frac{n \mu}{n} = \mu$
+Thus, $E(\bar{X_n}) = \mu$. So, no matter how many samples we have, the average of the samples will be the mean $\mu$.
+
+$b)$
+Second, we will derive the variance of the same sample mean. We can assume the following, as the sample mean is given:
+
+$Var(\bar{X}_n) = Var(\frac{X_1 + X_2 + \cdots + X_n}{n})$
+
+If we have independent random variables, the variance of their sums is the sum of their variances. So, we can write:
+
+$$Var(X_1 + X_2 + \cdots + X_n) = Var(X_1) + Var(X_2) + \cdots + Var(X_n)$$
+
+Further, a constant in the variance operator can be brought out and take position before the variance operator with a multiplication. In our case, we can bring $n$ out of the variance operators. It also needs to be squared, as it is brought out of the variance operator. In the same step, we use the independence of the random variables and reshaping the variance of the sum of random variables in the sum of their variances:
+
+$$Var(\bar{X}_n) = \frac{1}{n^2} [Var(X_1) + Var(X_2) + \cdots + Var(X_n)]$$
+
+Since all random variables are independent and identically distributed, they all have the same variance and we receive:
+
+$$Var(\bar{X}_n\right) = \frac{1}{n^2} (\sigma^2 + \sigma^2 + \cdots + \sigma^2) = \frac{n\sigma^2}{n^2} = \frac{\sigma^2}{n}$$
+
+So, as result we get:
+
+$$Var(\bar{X}_n) = \frac{\sigma^2}{n}$$
+ $c)$
+ Here, we will consider the die-rolling experiment and simulate die rolls. Further, we will repeat the die rolls $M = 100$ times to receive 100 sample means for each n.
+ Afterwards, we will plot a histogram of the 100 sample means of each value of n. We will write a function to simulate the die rolls.
+ 
+```{r die rolling experiment, echo=TRUE}
+simulate_die_rolls <- function(n) {
+  die_rolls <- sample(1:6, size = n, replace = TRUE)
+  mean(die_rolls)
+}
+
+
+cat("Mean of 100 rolls:", simulate_die_rolls(100),"\n")
+cat("Mean of 1000 rolls:", simulate_die_rolls(1000),"\n")
+cat("Mean of 10000 rolls:", simulate_die_rolls(10000),"\n")
+```
+Now, we will repeat the process 100 times for each value of n.
+```{r die rolling repetition, echo=TRUE}
+M <- 100
+sample_sizes <- c(100, 1000, 10000)
+all_means <- list()
+
+for (n in sample_sizes) {
+  means <- numeric(M)
+  
+  for (i in 1:M) {
+    means[i] <- simulate_die_rolls(n)
+  }
+  
+  all_means[[as.character(n)]] <- means
+}
+print("First 5 means for n=100:")
+print(head(all_means[["100"]], 5))
+print("First 5 means for n=1000:")
+print(head(all_means[["1000"]], 5))
+print("First 5 means for n=10000:")
+print(head(all_means[["10000"]], 5))
+```
+Now, we will visualize the distribution for each value of n.
+```{r die rolling experiment, echo=TRUE}
+for (n in sample_sizes) {
+  
+  hist(all_means[[as.character(n)]],
+       main = paste("n =", n),
+       xlab = "Sample Mean",
+       xlim = c(3, 4),  
+       breaks = 20,
+       freq = FALSE)
+}
+```
+
+We can observe that the variance is the highest with $n = 100$ and lowest with $n = 10000$. If we calculate the mean $(1+2+3+4+5+6)/6 = 3.5$, we can see that the higher the value for $n$, the less the values spread among the real mean.
+For the value of $n = 100$, the histogram shows a little bell-shaped form, still containing some abnormal means. With $n = 1000$, the distribution becomes smoother, still having some irregular means. And with $n = 10000$, the distribution of the means closely matches to a normal bell-shaped curve.
+According to the *Central Limit Theorem*, the distribution of the means becomes more and more bell-shpaed the more samples we have. Also, the variability of the values decreases to the real mean the higher the value for n is. Also, the higher the value for n is, the more means appear near to the normal mean ($\mu = 3.5$).
+Thus, the central limit theorem can be explained by that example, as we could observe that the distribution of our samples becomes normal when we have an especially high value for *n*, even if the distribution of samples for a small value of n is not normal.
+
+$d)$
+Here, we will compute the expected value $\mu$ and $\sigma^2$ for the random variable $X_i$, which follows a discrete uniform distribution. 
+
+Following the formula to calculate the mean 
+$$\mu = E[X_i] = \sum_{k=1}^{6} k \cdot \frac{1}{6} = \frac{1 + 2 + 3 + 4 + 5 + 6}{6} = \frac{21}{6} = 3.5$$
+we can calculate the mean:
+
+```{r mean calculation, echo=TRUE}
+mu <- (1 + 2 + 3 + 4 + 5 + 6) / 6
+cat("Calculated mean: ", mu, "\n")
+```
+
+According the formula to calculate the variance
+$$E[X_i^2] = \sum_{k=1}^{6} k^2 \cdot P(X_i = k) = \frac{1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2}{6} = \frac{91}{6}$$
+
+$$\sigma^2 = \frac{91}{6} - 3.5^2 = \frac{35}{12} \approx 2.9167$$
+
+we calculate the variance
+
+```{r variance calculation, echo=TRUE}
+variance <- ((1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2)/6) - mu^2
+cat("Calculated variance: ", variance, "\n")
+```
+$e)$
+Now, we will again simulate the rolling of n dices and calculate the $Z_n$.
+```{r simulation of roll dice, echo=TRUE}
+mu <- 3.5
+sigma_sq <- 35/12
+simulate_zn <- function(n, M) {
+  zn_values <- numeric(M)
+  for (i in 1:M) {
+    sample <- sample(1:6, size = n, replace = TRUE)
+    sample_mean <- mean(sample)
+    zn <- (sample_mean - mu) / sqrt(sigma_sq/n)
+    zn_values[i] <- zn
+  }
+  return(zn_values)
+}
+
+sample_sizes <- c(100, 1000, 10000)
+replications <- c(100, 1000, 10000)
+
+for (n in sample_sizes) {
+  for (M in replications) {
+    zn <- simulate_zn(n, M)
+    hist(zn, 
+         main = paste("n =", n, ", M =", M),
+         xlab = expression(Z[n]),
+         freq = FALSE)
+  }
+}
+```
+According to the *Central Limit Theory*, the distribution of $Z_n$ should converge to a standard normal distribution. Looking at the histograms that we have created, the assumption can be confirmed. Having $M = 100$, all three histograms show a slightly bell-shaped shape, but still with some outliers according to all values for *n*. This could occur, because the amount of data is much smaller than for higher values of *M*. The higher the value for *M* gets, the more normal the histograms look like (in relation to a normal bell shape), while it has the best bell shape for every value of *n* with $M = 10000$.
+A higher value for *n* brings us a histogram with fewer outliers towards the boundaries of the histogram. Also, the smaller the value for *n*, the wider tailed is the distribution of the values. For $n = 10000$, we can see the best fit of the resulting shape with the standard normal distribution.
+Thus, we can say that for larger values of *n*, the distribution of $Z_n$ becomes normal, regardless of the original shape. Further, larger values for *M* show this convergence better, because it is possible to compare different values for *M*.
