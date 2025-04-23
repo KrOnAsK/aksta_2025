@@ -1,0 +1,313 @@
+---
+title: "Case Study 2"
+author: "First Name, Last Name"
+date: "2025-04-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages(dplyr)
+library(dplyr)
+```
+*The  .Rmd* **and** *.html (or .pdf) should be uploaded in TUWEL by the deadline. Refrain from using explanatory comments in the R code chunks but write them as text instead. Points will be deducted if the submitted file is not in a decent form.*
+
+**DISCLAIMER**: In case students did not contribute equally, include a disclaimer stating what each student's contribution was.
+
+
+The CIA World Factbook provides intelligence on various aspects of 266 world entities, including history, people, government, economy, energy, geography, environment, communications, transportation, military, terrorism, and transnational issues. This case study involves analyzing world data from 2020, focusing on:
+
+- **Education Expenditure (% of GDP)**
+- **Youth Unemployment Rate (15-24 years)**
+- **Net Migration Rate** (difference between the number of people entering and leaving a country per 1,000 persons)
+
+The data was sourced from the [CIA World Factbook Archives](https://www.cia.gov/the-world-factbook/about/archives/). You are required to use `dplyr` for data manipulation, while any package can be used for importing data.
+
+# Tasks:
+
+## a. Data Import and Cleaning
+
+Load the following datasets from TUWEL and ensure that missing values are handled correctly and column names are clear. Each dataset should ultimately contain only two columns: **country** and the respective variable. Note that some data sets also contain information on the year when the value was last updated.
+
+  
+  * `rawdata_369.txt` which contains the (estimated)  public expenditure on education as a percent of GDP. *Pay attention! The delimiter is 2 or more white spaces (one space would not work as it would separate country names which contain a space); you have to skip the first two lines*. 
+  
+  * `rawdata_373.csv` which contains the (estimated) youth unemployment rate (15-24) per country
+  
+  * `rawdata_347.txt`  which contains (estimated) net migration rate per country.
+
+```{r data import, echo=TRUE}
+readLines("case_study_2_data/rawdata_369.txt", n = 5)
+```  
+```{r data import, echo=TRUE}
+# read the file lines for rawdata_347.txt
+lines <- readLines("case_study_2_data/rawdata_347.txt")
+# skippin the header line
+lines <- lines[-1]
+
+country <- character()
+net_migration_rate <- numeric()
+
+# first looping over all lines and extracting each country and rate
+for (line in lines) {
+  # then split line based on whitespaces
+  tokens <- strsplit(trimws(line), "\\s+")[[1]]
+  # retaining positions of numeric values here
+  numeric_indices <- which(!is.na(suppressWarnings(as.numeric(tokens))))
+  if (length(numeric_indices) >= 2) {
+    # extracting country names
+    country_part <- tokens[(numeric_indices[1] + 1):(numeric_indices[2] - 1)]
+    country <- c(country, paste(country_part, collapse = " "))
+    net_migration_rate <- c(net_migration_rate, as.numeric(tokens[numeric_indices[2]]))
+  }
+}
+# net migration df
+net_migration_df <- data.frame(
+  country = country,
+  net_migration_rate = net_migration_rate
+)
+```  
+```{r data import rawdata_373.txt, echo=TRUE}
+# reading file for rawdata_373.txt
+youth_unemployment_rate <- read.csv("case_study_2_data/rawdata_373.csv", header = TRUE)
+```    
+  
+```{r data import rawdata_369.txt, echo=TRUE}
+# readin lines from rawdata_369
+lines <- readLines("case_study_2_data/rawdata_369.txt")
+# removing header lines here
+lines <- lines[-c(1, 2)]
+
+country <- character()
+education_expenditure <- numeric()
+
+# looping over each line and splitting lines if they have more than two whitespaces
+for (line in lines) {
+  tokens <- strsplit(trimws(line), "\\s{2,}")[[1]]
+  # extracting country and expenditure
+  if (length(tokens) >= 3) {
+    country <- c(country, tokens[2])
+    education_expenditure <- c(education_expenditure, as.numeric(tokens[3]))
+  }
+}
+
+education_expenditure_df <- data.frame(
+  country = country,
+  education_expenditure = education_expenditure
+)
+```  
+Checking the structure of all three dataframes.
+```{r verification of data imports, echo=TRUE}
+str(net_migration_df)
+str(youth_unemployment_rate)
+str(education_expenditure_df)
+``` 
+It seems better to rename the column "country_name" to "country" to use it as a key in the next step.
+
+```{r renaming country name, echo=TRUE}
+youth_unemployment_rate <- youth_unemployment_rate %>%
+  rename(country = country_name)
+```
+
+## b. Merging Raw Data
+
+Merge the datasets using `dplyr` on a unique key and retain the union of all observations.
+
+- What key are you using for merging?
+- Return the dimensions of the merged dataset.
+
+We will use the country name as key, as it is present in each dataframe we have created. We will use *dplyr* for the merge and sort the column "country" at the end, to check if the merging went through for all countries or whether we need to manipulate some country names.
+```{r merging of all dataframes, echo=TRUE}
+youth_unemployment_rate <- youth_unemployment_rate %>%
+  mutate(country = trimws(country))
+
+# merging all dataframes by our key country
+merged_df <- net_migration_df %>%
+  full_join(youth_unemployment_rate, by = "country") %>%
+  full_join(education_expenditure_df, by = "country")
+# sorting the resulting dataframe by country ascending
+merged_df_sorted <- merged_df %>%
+  arrange(country)
+
+head(merged_df_sorted)
+```
+As we can see in the output, some countries are printed out twice. After an investigation, we found out that there are many whitespaces in the column "country". After removing the whitespaces in the following code chunk, all countries were printed out once.
+
+```{r removing duplicates, echo=TRUE}
+# removing whitespaces  here
+youth_unemployment_rate <- youth_unemployment_rate %>%
+  mutate(country = trimws(country))
+
+# again merging dataframes by country here
+merged_df_trimmed <- net_migration_df %>%
+  full_join(youth_unemployment_rate, by = "country") %>%
+  full_join(education_expenditure_df, by = "country")
+
+# sorting the resulting dataframe by country ascending
+merged_df_trimmed_sorted <- merged_df_trimmed %>%
+  arrange(country)
+
+head(merged_df_trimmed_sorted)
+```
+In the result, we have the following dimensions:
+
+```{r printing dimensions, echo=TRUE}
+str(merged_df_trimmed_sorted)
+```
+
+* country
+* net_migration_rate
+* youth_unempl_rate
+* education_expenditure
+
+## c. Enriching Data with Income Classification
+
+Obtain country income classification (low, lower-middle, upper-middle, high) from the [World Bank](https://datahelpdesk.worldbank.org/knowledgebase/articles/906519) and merge it with the dataset.
+
+- Identify common variables between datasets. Can they be used for merging? Why or why not?
+
+- Since ISO codes are standardized, download and use the [CIA country data codes](https://www.cia.gov/the-world-factbook/references/country-data-codes/) for merging. Make sure you are not losing any of the countries in your original data set when merging.
+
+The only common variables between all datasets are country name. Although it could work to merge the dataframes on each full country name, it is a safer practice to use a key that is standardized for country names. That is ISO code. The countries could be written in an other manner or using german abbreviations or abbreviations in an other language.
+First, we will load the new dataset into a dataframe.
+Secondly, we will enrich both dataframes with a new column "ISO", to be able to merge the data.
+
+```{r load world bank data, echo=TRUE}
+# loading lines from dcsv file for world bank income data
+world_bank_income <- read.csv("case_study_2_data/world_bank_income.csv", sep = ";", stringsAsFactors = FALSE)
+
+colnames(world_bank_income) <- c("country", "iso-code", "income_group")
+
+head(world_bank_income)
+```
+Now, we will enrich the first huge dataframe with the ISO column containing the country code.
+First, we will load the ISO country data:
+```{r load iso country data, echo=TRUE}
+# loading lines from csv file for country code data and dropping last four unnecessary columns
+country_data_codes <- read.csv(
+  "case_study_2_data/country_data_codes.csv",
+  header = TRUE,
+  sep = ",",
+  quote = "\"",
+  colClasses = c("character", "character", rep("NULL", 4))
+)
+
+# renaming columns
+colnames(country_data_codes) <- c("country", "iso-code")
+
+head(country_data_codes)
+```
+Now, we will add the country codes to the existing dataframe. Again we check for duplicates due to a incorrect merge.
+```{r appending iso codes, echo=TRUE}
+# merging last dataframe with dataframe containing iso country codes
+merged_df_trimmed_sorted_iso <- merged_df_trimmed_sorted %>%
+  left_join(country_data_codes, by = "country")
+
+head(merged_df_trimmed_sorted_iso)
+```
+All countries are present and there are no duplicates. So, we can continue by merging the world bank income data with the already existing dataframe using ISO code as merging key.
+```{r mergig existing data with income data, echo=TRUE}
+# merging world bank income data with iso country dataframe
+final_merged_df <- merged_df_trimmed_sorted_iso %>%
+  left_join(world_bank_income, by = "iso-code")
+# removing redundant country column
+final_merged_df$country.y <- NULL
+
+head(final_merged_df)
+```
+We receive a dataframe containing all countries and all necessary columns. At the end, we removed the redundant column "country.y" from the world_bank_income dataframe.
+
+## d.  Adding Geographical Information
+
+Introduce continent and subcontinent (or region) data for each country.
+
+- Find and download an appropriate online resource.
+- Merge this information into the dataset, naming the final dataset `df_vars`. Make sure you are not losing any of the countries in your original data set when merging.
+
+The best source would be if all searched characteristics would be included: ISO 3 code, the continent and subcontinent of a country. We found a source which fit all of our needs here: https://unstats.un.org/unsd/methodology/m49/overview/. The file was downloaded in csv format and will be loaded and cleaned in the following code chunk.
+
+```{r loading geographical data, echo=TRUE}
+# loading lines from csv containing continent and subcontinent information per country
+geographical_info <- read.csv(
+  "case_study_2_data/un_country_continent_subcontinent.csv",
+  header = TRUE,
+  sep = ";"
+)
+
+# removing redundant country column
+geographical_info$Global.Code <- NULL
+geographical_info$Global.Name <- NULL
+geographical_info$Region.Code <- NULL
+geographical_info$Global.Code <- NULL
+geographical_info$Sub.region.Code <- NULL
+geographical_info$Intermediate.Region.Code <- NULL
+geographical_info$Intermediate.Region.Name <- NULL
+geographical_info$Country.or.Area <- NULL
+geographical_info$M49.Code <- NULL
+geographical_info$ISO.alpha2.Code <- NULL
+geographical_info$Least.Developed.Countries..LDC. <- NULL
+geographical_info$Land.Locked.Developing.Countries..LLDC. <- NULL
+geographical_info$Small.Island.Developing.States..SIDS. <- NULL
+
+# renaming columns to have a coherent naming
+colnames(geographical_info) <- c("continent", "subcontinent", "iso-code")
+
+head(geographical_info)
+```
+Now, having a dataframe containing continent, subcontinent info per country using the iso 3 code, we can merge that geographical data to our dataframe from before.
+
+```{r mergig existing data with geographical data, echo=TRUE}
+# adding geogprahical data to the dataframe without loosing any countries
+df_vars <- final_merged_df %>%
+  left_join(geographical_info, by = "iso-code")
+
+head(df_vars)
+```
+The dataframe statistics shows us 227 lines of countries in our resulting dataframe. That is exactly the same amount of countries as our biggest input data files has, thus we did not lose any countries while merging.
+
+## e. Data Tidiness and Summary Statistics
+
+- Evaluate the tidiness of `df_vars`
+(observational units, variables, fixed vs. measured variables).
+Make adjustments to tidy the data, if necessary.
+
+- Create a frequency table for the income status variable and briefly interpret the results.
+
+- Analyze the distribution of income status across continents by computing absolute and relative frequencies. Comment on the findings.
+
+- Using the distribution of income status across continents, identify which countries are the only ones in their income group across the continent. Discuss briefly.
+
+
+
+
+
+## f. Further Summary Statistics and Insights
+
+- Create a table of average (mean and median) values for expenditure, youth unemployment rate and net migration rate separated into income status. Make sure that in the output, the ordering of the income classes is proper (i.e., L, LM, UM, H or the other way around). Briefly comment the results and any differences between the mean and median. 
+
+- Look at the standard deviation and the interquartile range of the variables per income status instead of the location statistics above. Do you gain additional insights? Briefly comment the results. 
+
+
+- Extend the analysis of the statistics median and IQR  to **each income status and continent combination**. Play around with displaying the resulting table. Use `pivot_longer()` and/or 
+`pivot_wider()` to generate different outputs. 
+Discuss the results as well as the readability of the different tables.
+ 
+- Identify countries performing well in terms of both **youth unemployment** and **net migration rate** (top 25% in net migration and bottom 25% in youth unemployment within their continent).
+
+## g. Conditional Probabilities
+
+Estimate the following based on the observed frequencies in the data:
+
+- What is the (posterior or conditional) probability that a European country belongs to the high income group? What is the prior probability that a country belongs to the high income group?
+
+- Given a country has high youth unemployment (above %25), what is the probability that it also has negative net migration?
+
+
+## h. Simpson’s Paradox Analysis
+
+Investigate whether an overall trend in youth unemployment rate in the high and low income groups reverses when analyzed at the continent level. E.g., does the youth unemployment rate appear lower in low-income countries overall, but higher when controlling for continent? Explain the results and possible reasons behind this paradox.
+
+
+## i. Data Export
+
+Export the final tidy dataset from e. as a **CSV** with:`;` as a separator; `.` representing missing values; no row names included.  Upload the `.csv` to TUWEL, together with the submission.
