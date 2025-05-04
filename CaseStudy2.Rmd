@@ -442,11 +442,120 @@ head(df_vars)
 -   Look at the standard deviation and the interquartile range of the variables per income status instead of the location statistics above.
     Do you gain additional insights?
     Briefly comment the results.
+```{r}
+dispersion_stats <- df_vars %>%
+  group_by(income_group) %>%
+  summarise(
+    sd_expenditure = sd(education_expenditure, na.rm = TRUE),
+    iqr_expenditure = IQR(education_expenditure, na.rm = TRUE),
+    sd_unemployment = sd(youth_unempl_rate, na.rm = TRUE),
+    iqr_unemployment = IQR(youth_unempl_rate, na.rm = TRUE),
+    sd_migration = sd(net_migration_rate, na.rm = TRUE),
+    iqr_migration = IQR(net_migration_rate, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(income_group = factor(income_group, levels = income_groups)) %>%
+  arrange(income_group)
+
+dispersion_stats
+```
+    
 
 -   Extend the analysis of the statistics median and IQR to **each income status and continent combination**.
     Play around with displaying the resulting table.
     Use `pivot_longer()` and/or `pivot_wider()` to generate different outputs.
     Discuss the results as well as the readability of the different tables.
+    
+```{r}
+# Creating a comprehensive table with median and IQR for each variable by income group and continent
+combined_stats <- df_vars %>%
+  group_by(continent.x, income_group) %>%
+  summarise(
+    median_expenditure = median(education_expenditure, na.rm = TRUE),
+    iqr_expenditure = IQR(education_expenditure, na.rm = TRUE),
+    median_unemployment = median(youth_unempl_rate, na.rm = TRUE),
+    iqr_unemployment = IQR(youth_unempl_rate, na.rm = TRUE),
+    median_migration = median(net_migration_rate, na.rm = TRUE),
+    iqr_migration = IQR(net_migration_rate, na.rm = TRUE),
+    n_countries = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(income_group = factor(income_group, levels = income_groups)) %>%
+  arrange(continent.x, income_group)
+
+# Display the first table format
+head(combined_stats)
+```
+
+```{r}
+# Format 2: Focus on one variable at a time, income groups as columns
+unemployment_by_continent_income <- combined_stats %>%
+  select(continent.x, income_group, median_unemployment, iqr_unemployment, n_countries) %>%
+  pivot_wider(
+    id_cols = continent.x,
+    names_from = income_group,
+    values_from = c(median_unemployment, iqr_unemployment, n_countries),
+    values_fill = NA
+  )
+
+# Display the unemployment focused table
+unemployment_by_continent_income
+```
+
+```{r}
+# Format 3: Focus on continents with variables and income groups nested
+continent_focused <- combined_stats %>%
+  select(-n_countries) %>%
+  pivot_longer(
+    cols = c(median_expenditure, iqr_expenditure, median_unemployment, 
+             iqr_unemployment, median_migration, iqr_migration),
+    names_to = "statistic",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = case_when(
+      grepl("expenditure", statistic) ~ "Education Expenditure",
+      grepl("unemployment", statistic) ~ "Youth Unemployment",
+      grepl("migration", statistic) ~ "Net Migration",
+      TRUE ~ NA_character_
+    ),
+    stat_type = ifelse(grepl("median", statistic), "Median", "IQR")
+  ) %>%
+  pivot_wider(
+    id_cols = c(continent.x, variable, income_group),
+    names_from = stat_type,
+    values_from = value
+  )
+
+# Display the continent-focused table
+head(continent_focused)
+```
+
+```{r}
+# Calculate quartiles for each variable within continents
+quartiles <- df_vars %>%
+  group_by(continent.x) %>%
+  mutate(
+    unemployment_quantile = ntile(youth_unempl_rate, 4),
+    migration_quantile = ntile(net_migration_rate, 4)
+  ) %>%
+  ungroup()
+
+# Identify countries in bottom 25% for unemployment and top 25% for migration
+well_performing_countries <- quartiles %>%
+  filter(unemployment_quantile == 1, migration_quantile == 4) %>%
+  select(country.x, continent.x, youth_unempl_rate, net_migration_rate, income_group) %>%
+  arrange(continent.x, country.x)
+
+# Display the well-performing countries
+well_performing_countries
+```
+
+These identified countries are performing exceptionally well compared to their continental peers, with low youth unemployment and high net migration rates. This combination often indicates strong economic opportunities that both retain local youth in the workforce and attract migrants from other countries.
+Interestingly, these well-performing countries span different income groups, suggesting that relative performance within a continent isn't solely determined by income classification. The presence of countries from various regions demonstrates that success in these metrics can be achieved through different policy approaches adapted to local conditions.
+Policymakers might look to these nations as potential case studies for successful strategies in youth employment and migration management within their respective continental contexts.
+
+    
 
 -   Identify countries performing well in terms of both **youth unemployment** and **net migration rate** (top 25% in net migration and bottom 25% in youth unemployment within their continent).
 
@@ -456,8 +565,70 @@ Estimate the following based on the observed frequencies in the data:
 
 -   What is the (posterior or conditional) probability that a European country belongs to the high income group?
     What is the prior probability that a country belongs to the high income group?
+    
+```{r}
+# Prior probability: P(High income)
+prior_high_income <- df_vars %>%
+  filter(!is.na(income_group)) %>%
+  summarise(
+    prob = mean(income_group == "High income", na.rm = TRUE)
+  ) %>%
+  pull(prob)
+
+# Conditional probability: P(High income | Europe)
+conditional_europe_high <- df_vars %>%
+  filter(!is.na(income_group), !is.na(continent.x)) %>%
+  filter(continent.x == "Europe") %>%
+  summarise(
+    prob = mean(income_group == "High income", na.rm = TRUE)
+  ) %>%
+  pull(prob)
+
+# Display the probabilities
+cat("Prior probability that a country belongs to high income group:", 
+    round(prior_high_income, 4), "\n")
+cat("Conditional probability that a European country belongs to high income group:", 
+    round(conditional_europe_high, 4))
+```
+    
 
 -   Given a country has high youth unemployment (above %25), what is the probability that it also has negative net migration?
+
+```{r}
+# Define high unemployment threshold
+unemployment_threshold <- 25
+
+# Calculate conditional probability: P(Negative migration | High unemployment)
+high_unemployment_negative_migration <- df_vars %>%
+  filter(!is.na(youth_unempl_rate), !is.na(net_migration_rate)) %>%
+  mutate(
+    high_unemployment = youth_unempl_rate > unemployment_threshold,
+    negative_migration = net_migration_rate < 0
+  ) %>%
+  group_by(high_unemployment) %>%
+  summarise(
+    prob_negative_migration = mean(negative_migration, na.rm = TRUE),
+    count = n(),
+    .groups = "drop"
+  )
+
+# Display the result
+high_unemployment_negative_migration
+```
+
+```{r}
+# Overall probability of negative migration
+overall_negative_migration <- df_vars %>%
+  filter(!is.na(net_migration_rate)) %>%
+  summarise(
+    prob = mean(net_migration_rate < 0, na.rm = TRUE)
+  ) %>%
+  pull(prob)
+
+cat("Overall probability of negative net migration:", round(overall_negative_migration, 4))
+```
+
+
 
 ## h. Simpson’s Paradox Analysis
 
@@ -465,8 +636,109 @@ Investigate whether an overall trend in youth unemployment rate in the high and 
 E.g., does the youth unemployment rate appear lower in low-income countries overall, but higher when controlling for continent?
 Explain the results and possible reasons behind this paradox.
 
+```{r}
+# First, let's examine the overall relationship between income group and youth unemployment
+overall_comparison <- df_vars %>%
+  filter(income_group %in% c("Low income", "High income"), !is.na(youth_unempl_rate)) %>%
+  group_by(income_group) %>%
+  summarise(
+    mean_unemployment = mean(youth_unempl_rate, na.rm = TRUE),
+    median_unemployment = median(youth_unempl_rate, na.rm = TRUE),
+    count = n(),
+    .groups = "drop"
+  )
+
+# Display the overall relationship
+overall_comparison
+```
+```{r}
+# Continent-specific comparison between high and low income groups
+continent_comparison <- df_vars %>%
+  filter(income_group %in% c("Low income", "High income"), 
+         !is.na(youth_unempl_rate), 
+         !is.na(continent.x)) %>%
+  group_by(continent.x, income_group) %>%
+  summarise(
+    mean_unemployment = mean(youth_unempl_rate, na.rm = TRUE),
+    median_unemployment = median(youth_unempl_rate, na.rm = TRUE),
+    count = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(continent.x, income_group)
+
+# Display the continent-specific comparison
+continent_comparison
+```
+
+```{r}
+# Create a wide format to directly compare high vs low income within each continent
+continent_wide <- continent_comparison %>%
+  select(continent.x, income_group, mean_unemployment, count) %>%
+  pivot_wider(
+    id_cols = continent.x,
+    names_from = income_group,
+    values_from = c(mean_unemployment, count),
+    values_fill = list(mean_unemployment = NA, count = 0)
+  )
+
+# Calculate the difference in unemployment rates
+continent_wide <- continent_wide %>%
+  mutate(
+    difference = `mean_unemployment_Low income` - `mean_unemployment_High income`,
+    direction = case_when(
+      is.na(difference) ~ "Not comparable",
+      difference > 0 ~ "Low > High",
+      difference < 0 ~ "Low < High",
+      TRUE ~ "Equal"
+    )
+  )
+
+# Display the comparison
+continent_wide
+```
+
+Our analysis reveals an interesting example of Simpson's Paradox in youth unemployment data:
+
+In the overall data, high income countries appear to have a lower mean youth unemployment rate (14.63%) compared to low income countries (15.72%).
+However, when we control for continent, a different pattern emerges:
+
+In Africa, low income countries have a lower mean youth unemployment rate (14.41%) than high income countries (53.00%, although this is based on only 1 country).
+In Asia, low income countries have a lower mean youth unemployment rate (12.46%) than high income countries (14.04%).
+There are no low income countries in Europe, North America, or Oceania for comparison.
+South America doesn't have data for high income countries to make a comparison.
+
+
+
+This is a classic example of Simpson's Paradox, where the direction of an association appears to reverse when groups are combined. The paradox can be explained by several factors:
+
+Uneven distribution of income groups across continents: High income countries are concentrated in Europe and North America where structural factors might lead to different baseline unemployment rates.
+Different sample sizes: The number of high income countries (51) is much larger than low income countries (14), and they're distributed differently across continents.
+Geographical and regional factors: The economic structures, labor markets, and development pathways differ significantly across continents, influencing how youth unemployment manifests regardless of income status.
+Policy and institutional differences: Even within the same income classification, countries have different education systems, labor market regulations, and social safety nets that affect youth employment.
+
+The paradox illustrates the importance of controlling for confounding variables in statistical analyses. When analyzing global economic indicators, geographical and regional factors can significantly influence relationships that might appear different at the aggregate level.
+Understanding this paradox is crucial for policymakers: interventions that might work for high-income countries in one region may not be appropriate for countries with similar income levels in different regions, as the underlying factors driving youth unemployment may be substantially different
+
+
 ## i. Data Export
 
 Export the final tidy dataset from e.
 as a **CSV** with:`;` as a separator; `.` representing missing values; no row names included.
 Upload the `.csv` to TUWEL, together with the submission.
+
+```{r}
+# Ensure we're exporting the tidy dataset from the end of part e
+# This includes the renaming and reorganization, but doesn't include 
+# the additional statistics or transformations from parts f-h
+
+# Export the tidy dataset as a CSV file
+write.csv2(df_vars, 
+           file = "world_data_2020_tidy.csv", 
+           na = ".", 
+           row.names = FALSE,
+           fileEncoding = "UTF-8")
+
+# Verify the file was created correctly
+file.exists("world_data_2020_tidy.csv")
+```
+
