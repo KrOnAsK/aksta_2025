@@ -35,6 +35,7 @@ to the dataset in Case Study 2.
 ```{r packages, echo=TRUE}
 library(ggplot2)
 library(dplyr)
+library(forcats)
 ```
 
 # Tasks:
@@ -274,6 +275,31 @@ the x-axis.
   * Comment on the plot. E.g., what are the regions with the most influx? 
   What are the regions with the most outflux?
 
+```{r}
+# Calculate median youth unemployment rate per subcontinent
+median_unemployment_subcontinent <- data_case_study2 %>%
+  filter(!is.na(subcontinent.x) & !is.na(youth_unempl_rate) & !is.na(continent.x)) %>%
+  group_by(continent.x, subcontinent.x) %>%
+  summarise(median_youth_unemployment = median(youth_unempl_rate, na.rm = TRUE), .groups = 'drop')
+
+# Create the bar plot
+ggplot(median_unemployment_subcontinent, aes(x = median_youth_unemployment, y = fct_reorder(subcontinent.x, median_youth_unemployment))) +
+  geom_bar(aes(fill = continent.x), stat = "identity", alpha = 0.7) +
+  scale_fill_brewer(palette = "Paired") + # Another example of a colorblind-friendly palette
+  labs(
+    title = "Median Youth Unemployment Rate by Subcontinent",
+    x = "Median Youth Unemployment Rate (%)",
+    y = "Subcontinent",
+    fill = "Continent"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.y = element_text(size = 8) # Adjust y-axis text size if needed
+  )
+```
+
+
 
 ## g. Median youth unemployment rate per subcontinent
 
@@ -299,8 +325,29 @@ the x-axis.
   
   * Comment on the plot. E.g., what are the regions with the highest vs lowest youth
   unemployment rate?
-  
+```{r}
+# Calculate median youth unemployment rate per subcontinent
+median_unemployment_subcontinent <- data_case_study2 %>%
+  filter(!is.na(subcontinent.x) & !is.na(youth_unempl_rate) & !is.na(continent.x)) %>%
+  group_by(continent.x, subcontinent.x) %>%
+  summarise(median_youth_unemployment = median(youth_unempl_rate, na.rm = TRUE), .groups = 'drop')
 
+# Create the bar plot
+ggplot(median_unemployment_subcontinent, aes(x = median_youth_unemployment, y = fct_reorder(subcontinent.x, median_youth_unemployment))) +
+  geom_bar(aes(fill = continent.x), stat = "identity", alpha = 0.7) +
+  scale_fill_brewer(palette = "Paired") + # Another example of a colorblind-friendly palette
+  labs(
+    title = "Median Youth Unemployment Rate by Subcontinent",
+    x = "Median Youth Unemployment Rate (%)",
+    y = "Subcontinent",
+    fill = "Continent"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.y = element_text(size = 8) # Adjust y-axis text size if needed
+  )
+```
 
 
 ## h. Median youth unemployment rate per subcontinent -- with error bars
@@ -313,8 +360,36 @@ the variable in each of the subcontinents.
 
 Repeat the plot from Task g. but include also error bars which reflect the 25% and 75%
 quantiles. You can use `geom_errorbar` in **ggplot2**.
+```{r}
+# Calculate median, 25th and 75th quantiles for youth unemployment rate per subcontinent
+quantile_unemployment_subcontinent <- data_case_study2 %>%
+  filter(!is.na(subcontinent.x) & !is.na(youth_unempl_rate) & !is.na(continent.x)) %>%
+  group_by(continent.x, subcontinent.x) %>%
+  summarise(
+    median_youth_unemployment = median(youth_unempl_rate, na.rm = TRUE),
+    q25_youth_unemployment = quantile(youth_unempl_rate, 0.25, na.rm = TRUE),
+    q75_youth_unemployment = quantile(youth_unempl_rate, 0.75, na.rm = TRUE),
+    .groups = 'drop'
+  )
 
+# Create the bar plot with error bars
+ggplot(quantile_unemployment_subcontinent, aes(x = median_youth_unemployment, y = fct_reorder(subcontinent.x, median_youth_unemployment))) +
+  geom_bar(aes(fill = continent.x), stat = "identity", alpha = 0.7) +
+  geom_errorbar(aes(xmin = q25_youth_unemployment, xmax = q75_youth_unemployment), width = 0.2, color = "gray40") + # Added color for error bars
+  scale_fill_brewer(palette = "Paired") +
+  labs(
+    title = "Median Youth Unemployment Rate by Subcontinent with IQR Error Bars",
+    x = "Median Youth Unemployment Rate (%) (IQR Error Bars)",
+    y = "Subcontinent",
+    fill = "Continent"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.y = element_text(size = 8)
+  )
 
+```
 
 ## i. Relationship between education expenditure and net migration rate
 
@@ -328,11 +403,46 @@ net migration rate.
 Comment on the plot. Do you see any relationship between the two variables? Do you see
 any difference among the income levels?
 
+```{r}
+# Create the scatter plot
+ggplot(data_case_study2, aes(x = education_expenditure, y = net_migration_rate)) +
+  geom_point(aes(color = income_group), alpha = 0.7) + # Added alpha for better visibility of overlapping points
+  geom_smooth(aes(color = income_group, fill = income_group), method = "lm", se = TRUE, alpha = 0.1) + # Added fill for SE ribbon and alpha
+  scale_color_brewer(palette = "Dark2", name = "Income Status") + # Consistent naming for legend
+  scale_fill_brewer(palette = "Dark2", name = "Income Status") +  # Consistent naming for legend
+  labs(
+    title = "Education Expenditure vs. Net Migration Rate by Income Status",
+    x = "Education Expenditure (% of GDP)",
+    y = "Net Migration Rate (per 1,000 population)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "top"
+  )
+```
 ## j. Relationship between youth unemployment and net migration rate
 
 Create a plot as in Task i. but for youth unemployment and net migration rate. Comment briefly.
 
-
+```{r}
+# Create the scatter plot for youth unemployment and net migration
+ggplot(data_case_study2, aes(x = youth_unempl_rate, y = net_migration_rate)) +
+  geom_point(aes(color = income_group), alpha = 0.7) +
+  geom_smooth(aes(color = income_group, fill = income_group), method = "lm", se = TRUE, alpha = 0.1) +
+  scale_color_brewer(palette = "Dark2", name = "Income Status") +
+  scale_fill_brewer(palette = "Dark2", name = "Income Status") +
+  labs(
+    title = "Youth Unemployment vs. Net Migration Rate by Income Status",
+    x = "Youth Unemployment Rate (%)",
+    y = "Net Migration Rate (per 1,000 population)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.position = "top"
+  )
+```
 
 
 ## k. Merging population data
