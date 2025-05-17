@@ -1,0 +1,395 @@
+---
+title: "Case Study 3: Visualization"
+subtitle: "AKSTA Statistical Computing"
+output: 
+  html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+*The  .Rmd* **and** *.html (or .pdf) should be uploaded in TUWEL by the deadline. Refrain from using explanatory comments in the R code chunks but write them as text instead. Points will be deducted if the submitted file is not in a decent form.*
+
+**DISCLAIMER**: In case students did not contribute equally, include a disclaimer stating what each student's contribution was.
+
+
+ 
+# Data
+
+Load the data set you exported in the final Task of Case Study 2. 
+Eliminate all
+observations with missing values in the income status variable.
+
+
+As a reminder, the data set includes world data from 2020, focusing on:
+
+- **Education Expenditure (% of GDP)**
+- **Youth Unemployment Rate (15-24 years)**
+- **Net Migration Rate** (difference between the number of people entering and leaving a country per 1,000 persons)
+
+for most world entities in 2020. The data was downloaded from https://www.cia.gov/the-world-factbook/about/archives/.
+Additional information on continent, subcontinent/region and income status was appended 
+to the dataset in Case Study 2.
+
+```{r packages, echo=TRUE}
+library(ggplot2)
+library(dplyr)
+```
+
+# Tasks:
+
+## a. Education expenditure in different income levels
+
+Using **ggplot2**, create a density plot of the education expenditure grouped by income 
+status. The densities for the different groups are superimposed in the 
+same plot rather than in different plots. Ensure that you order the levels of the 
+income status such that in the plots the legend is ordered from High (H) to Low (L).
+
+  * The color of the density lines is black.
+  
+  * The area under the density curve should be colored differently among the income status levels.
+  
+  * For the colors, choose a transparency level of 0.5 for better visibility.
+  
+  * Position the legend at the top center of the plot and give it no title (hint: use `element_blank()`).
+  
+  * Rename the x axis as "Education expenditure (% of GDP)"
+
+  Comment briefly on the plot.
+  
+```{r data import, echo=TRUE}
+data_case_study2 <- read.csv("world_data_2020_tidy.csv", header = TRUE, sep = ";")
+head(data_case_study2)
+nrow(data_case_study2)
+data_case_study2 <- data_case_study2[data_case_study2$income_group != ".", ]
+nrow(data_case_study2)
+```
+```{r ggplot, echo=TRUE}
+# Ensure education_expenditure is numeric and clean
+clean_vals <- gsub(",", ".", data_case_study2[["education_expenditure"]])
+clean_vals[clean_vals %in% c("..", "n/a", "", "NA")] <- NA
+data_case_study2$net_migration_rate <- as.numeric(gsub(",", ".", data_case_study2$net_migration_rate))
+data_case_study2$youth_unempl_rate <- as.numeric(gsub(",", ".", data_case_study2$youth_unempl_rate))
+data_case_study2$education_expenditure <- as.numeric(clean_vals)
+
+# Order income groups from High to Low
+data_case_study2$income_group <- factor(
+  data_case_study2[["income_group"]],
+  levels = c("High income", "Upper middle income", "Lower middle income", "Low income")
+)
+
+# Create the density plot
+ggplot(data_case_study2, aes(x = education_expenditure, fill = income_group)) +
+  geom_density(color = "black", alpha = 0.5) +
+  scale_fill_discrete(name = NULL) +  # Remove legend title
+  labs(x = "Education expenditure (% of GDP)") +
+  theme(
+    legend.position = "top",
+    legend.justification = "center",
+    legend.title = element_blank()
+  )
+```
+Analyzing the plot, we can see that there are more countries in group "High income" and "Upper middle income". Further, we can see that countries being in groups "lower middle income" and "upper middle income" spend the highest portion of their gdp for education. This makes sense, as education should be a basic need. One can also see, that a few countries from groups "High income" and "Upper middle income" are spendingbelow 2,5% of their gdp on education, while many countries from groups "Lower middle income" and "Low income" spend below 2,5% of their gdp on education.
+
+## b. Income status in different continents
+
+Investigate how the income status is distributed in the different continents. 
+
+* Using **ggplot2**, create a stacked barplot of absolute frequencies showing how the entities are split into continents and income status. Comment the plot.
+
+* Create another stacked barplot of relative frequencies (height of the bars should be one).
+Comment the plot.
+
+* Create a mosaic plot of continents and income status using base R functions. 
+
+* Briefly comment on the differences between the three plots generated to investigate the income 
+distribution among the different continents.
+
+```{r stacked barplot abs freq, echo=TRUE}
+ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
+  geom_bar(position = "stack") +
+  labs(x = "Continent", y = "Number of Countries", fill = "Income Group") +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+On the stacked barplot with absolute frequencies we can see how many countries exist in each income group on each continent. 
+```{r stacked barplot rel freq, echo=TRUE}
+ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
+  geom_bar(position = "fill") +
+  labs(x = "Continent", y = "Proportion", fill = "Income Group") +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+On the stacked barplot with relative frequencies we can see what the proportion of countries in each income group on each continent is.
+```{r mosaic plot, echo=TRUE}
+# Create a contingency table
+tbl <- table(data_case_study2$continent.x, data_case_study2$income_group)
+
+# Mosaic plot
+mosaicplot(tbl, main = "Income Group by Continent", xlab = "Continent", ylab = "Income Group", color = TRUE, las = 1)
+```
+On the mosaic plot we can see how countries on each continent are split between all present income groups. The first plot shows the absolute amount of countries in each income group. THis plot is especially effective when a user needs to analyze a question with absolute numbers. The second plot plots the same, but in a relative manner. It can be used to compare the distribution of countries on each continent within each income group very fast and intuitive without computing number of countries in the brain. Each continent can be compared on its own with all other continents very effective.
+The last mosaci plot shows also the relative distribution of countries of a continent within income groups. The main message and design is similar to the stacked barplot with relative frequencies. But there are still two differences that let us reject this type of plot in the following task. Firstly, the income groups are not defined as color with a legend anymore, but on the x-axis. The percentage of relative frequencies of a country is moved to the spectator to calculated the distribution of each continent in its brain. Secondly, the axis labeling of the y-axis has moved from bottom to the top, which is an unusual place.
+
+## c. Income status in different subcontinents
+
+For Oceania, investigate further how the income status distribution is in the different subcontinents.
+Use one of the plots in b. for this purpose. Comment on the results.
+
+```{r investigation of oceania, echo=TRUE}
+# Filter only Oceania
+oceania_data <- data_case_study2 %>% 
+  filter(continent.x == "Oceania", !is.na(subcontinent.x), !is.na(income_group))
+
+# Make sure income_group is an ordered factor (from High to Low)
+oceania_data$income_group <- factor(oceania_data$income_group,
+                                    levels = c("High income", "Upper middle income", 
+                                               "Lower middle income", "Low income"))
+
+# Plot: Relative frequencies (position = "fill")
+ggplot(oceania_data, aes(x = subcontinent.x, fill = income_group)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(x = "Subcontinent", 
+       y = "Proportion of Countries", 
+       fill = "Income Group",
+       title = "Income Status Distribution in Oceania by Subcontinent") +
+  theme_minimal() +
+  theme(legend.position = "top",
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+We have chosen the stacked barplot  with relative frequencies of countries, because it is a good way to compare the distribution income groups of each subcontinent. Analyzing Oceania a main continent, we can see that its Auuuuuuuuuuuuuuuuustralia and New Zealand subcontinent part has only countries that belong into the group "High income". The distribution of countries in income groups of the other three subcontinents can easily be compared by each other using that type of plot. From that, we can see fast that Micronesia has the highest proportion of high income countries and Melanesia has the lowest proportion of high income countries of those three chosen subcontinents except of "Australia and New Zealand".
+## d. Net migration in different continents
+
+* Using **ggplot2**, create parallel boxplots  showing  the distribution of the
+net migration rate in the different continents. 
+
+* Prettify the plot (change y-, x-axis labels, etc).
+
+* Identify which country in Asia constitutes the largest negative outlier and 
+which country in Asia constitutes the largest positive outlier. 
+
+* Comment on the plot.
+```{r net immigration continent, echo=TRUE}
+data_box <- data_case_study2 %>%
+  filter(!is.na(continent.x), !is.na(net_migration_rate))
+
+# Create boxplot
+ggplot(data_box, aes(x = continent.x, y = net_migration_rate)) +
+  geom_boxplot(fill = "skyblue", color = "black", outlier.color = "red") +
+  labs(
+    title = "Distribution of Net Migration Rate by Continent",
+    x = "Continent",
+    y = "Net Migration Rate (per 1,000 population)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+asia_data <- data_box %>% filter(continent.x == "Asia")
+
+# Calculate IQR bounds
+q1 <- quantile(asia_data$net_migration_rate, 0.25, na.rm = TRUE)
+q3 <- quantile(asia_data$net_migration_rate, 0.75, na.rm = TRUE)
+iqr <- q3 - q1
+
+lower_bound <- q1 - 1.5 * iqr
+upper_bound <- q3 + 1.5 * iqr
+
+# Identify outliers
+asia_outliers <- asia_data %>%
+  filter(net_migration_rate < lower_bound | net_migration_rate > upper_bound)
+
+# Show largest negative and positive outlier
+asia_outliers %>%
+  arrange(net_migration_rate) %>%
+  select(country.x, net_migration_rate) %>%
+  slice(c(1, n()))
+```
+
+
+## e. Net migration in different subcontinents
+
+The graph in d. clearly does not convey the whole picture. It would be interesting also 
+to look at the subcontinents, as it is likely that a lot of migration flows
+happen within the continent.
+
+* Investigate the net migration in different subcontinents
+using again parallel boxplots.  Group the boxplots by continent (hint: use `facet_grid` with `scales = "free_x"`).
+
+* Remember to prettify the plot (rotate axis labels if needed).
+
+* Describe what you see.
+
+```{r net immigration subcontinent, echo=TRUE}
+migration_data <- data_case_study2 %>%
+  filter(!is.na(continent.x), !is.na(subcontinent.x), !is.na(net_migration_rate))
+
+# Plot
+ggplot(migration_data, aes(x = subcontinent.x, y = net_migration_rate)) +
+  geom_boxplot(fill = "lightblue", color = "black", outlier.color = "red") +
+  facet_grid(. ~ continent.x, scales = "free_x", space = "free_x") +
+  labs(
+    title = "Net Migration Rate by Subcontinent (Grouped by Continent)",
+    x = "Subcontinent",
+    y = "Net Migration Rate (per 1,000 population)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text.x = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+```
+
+## f. Median net migration rate per subcontinent.
+
+The plot in task e. shows the distribution of the net migration rate for each 
+subcontinent. Here you will work on visualizing only one summary statistic, namely 
+the median. 
+
+For each subcontinent, calculate the median net migration rate. Then create a plot which
+contains the sub-regions on the y-axis and the median net migration rate on 
+the x-axis. 
+
+  * As geoms use points. 
+  
+  *  Color the points by continent -- use a colorblind friendly palette (see e.g., 
+  [here](http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/)).
+  
+  * Rename the axes.
+  
+  * Using `fct_reorder` from the **forcats** package, arrange the levels of subcontinent
+  such that in the plot the lowest (bottom) subcontinent contains the lowest median
+  net migration
+  rate and the upper most region contains the highest median
+  net migration
+  rate.
+  
+  * Comment on the plot. E.g., what are the regions with the most influx? 
+  What are the regions with the most outflux?
+
+
+## g. Median youth unemployment rate per subcontinent
+
+For each subcontinent, calculate the median youth unemployment rate. Then create a plot which
+contains the sub-regions on the y-axis and the median unemployment rate on 
+the x-axis. 
+
+  * Use a black and white theme (`?theme_bw()`)
+  
+  * As geoms use bars. (hint: pay attention to the statistical transformation taking place
+  in `geom_bar()` -- look into  argument `stat="identity"`) 
+  
+  * Color the bars by continent -- use a colorblind friendly palette.
+  
+  * Make the bars transparent (use `alpha = 0.7`).
+  
+  * Rename the axes.
+  
+  * Using `fct_reorder` from the **forcats** package, arrange the levels of subcontinent
+  such that in the plot the lowest (bottom) subcontinent contains the lowest median
+  youth unemployment rate and the upper most region contains the highest median
+  youth unemployment rate.
+  
+  * Comment on the plot. E.g., what are the regions with the highest vs lowest youth
+  unemployment rate?
+  
+
+
+
+## h. Median youth unemployment rate per subcontinent -- with error bars
+
+The value displayed in the barplot in g. is the result of an aggregation, 
+so it might be useful to also plot error bars, to have a general idea on
+how precise the median unemployment is. This can be achieved by plotting the
+error bars which reflect the standard deviation or the interquartile range of 
+the variable in each of the subcontinents. 
+
+Repeat the plot from Task g. but include also error bars which reflect the 25% and 75%
+quantiles. You can use `geom_errorbar` in **ggplot2**.
+
+
+
+## i. Relationship between education expenditure and net migration rate
+
+Using **ggplot2**, create a plot showing the relationship between education expenditure and
+net migration rate. 
+
+  * Color the geoms based on the income status. 
+
+  * Add a regression line for each development status (using `geom_smooth()`).
+  
+Comment on the plot. Do you see any relationship between the two variables? Do you see
+any difference among the income levels?
+
+## j. Relationship between youth unemployment and net migration rate
+
+Create a plot as in Task i. but for youth unemployment and net migration rate. Comment briefly.
+
+
+
+
+## k. Merging population data
+
+Go online and find a data set which contains the 2020 population for the countries of the world
+together with ISO codes. 
+
+* Download this data and merge it to the dataset you are working on in
+this case study using a left join.
+(A possible source: [World Bank](https://data.worldbank.org/indicator/SP.POP.TOTL?end=2020&start=2020)))
+
+* Inspect the data and check whether the join worked well.
+
+
+## l. Scatterplot of education expenditure and net migration rate in Europe 
+
+Make a scatterplot of education expenditure and net migration rate for the countries of Europe. 
+
+  * Scale the size of the points according to each country's population. 
+ 
+  * For better visibility, use a transparency of `alpha=0.7`. 
+  
+  * Remove the legend.
+  
+  * Comment on the plot.
+
+
+
+
+
+## m. Interactive plot
+
+On the merged data set from Task k., using function `ggplotly` from package **plotly**  
+re-create the scatterplot in Task l., but this time for all countries. Color the points
+according to their continent.
+
+When hovering over the points the name of the country, 
+the values for education expenditure, net migration rate, and population 
+should be shown. (Hint: use the aesthetic `text = Country`. 
+In `ggplotly` use the argument `tooltip = c("text", "x", "y", "size")`).
+
+
+
+## n. Parallel coordinate plot
+
+In **parallel coordinate plots** each observation or data point is depicted as a line 
+traversing a series of parallel axes, corresponding to a specific variable or dimension.
+It is often used for identifying clusters in the data.
+
+One can create such a plot using the **GGally** R package. You should create 
+such a plot where you look at the three main variables in the data set: 
+education expenditure, youth unemployment rate and net migration rate. 
+Color the lines based on the income status. Briefly comment.
+
+
+## o. World map visualisation
+
+Create a world map of the education expenditure per country.
+You can use the vignette https://cran.r-project.org/web/packages/rworldmap/vignettes/rworldmap.pdf
+to find how to do this in R. Alternatively, you can use other packages (such as **ggplot2**, **sf** and **rnaturalearthdata**) to create a map.
