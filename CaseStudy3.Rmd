@@ -66,31 +66,33 @@ data_case_study2 <- data_case_study2[data_case_study2$income_group != ".", ]
 nrow(data_case_study2)
 ```
 ```{r ggplot, echo=TRUE}
-# Ensure education_expenditure is numeric and clean
-clean_vals <- gsub(",", ".", data_case_study2[["education_expenditure"]])
-clean_vals[clean_vals %in% c("..", "n/a", "", "NA")] <- NA
+# transforming variables to numeric values
+data_case_study2$education_expenditure <- as.numeric(gsub(",", ".", data_case_study2$education_expenditure))
 data_case_study2$net_migration_rate <- as.numeric(gsub(",", ".", data_case_study2$net_migration_rate))
 data_case_study2$youth_unempl_rate <- as.numeric(gsub(",", ".", data_case_study2$youth_unempl_rate))
-data_case_study2$education_expenditure <- as.numeric(clean_vals)
+nrow(data_case_study2)
 
-# Order income groups from High to Low
+# ordering income groups like in task
 data_case_study2$income_group <- factor(
   data_case_study2[["income_group"]],
   levels = c("High income", "Upper middle income", "Lower middle income", "Low income")
 )
 
-# Create the density plot
+# density plot
 ggplot(data_case_study2, aes(x = education_expenditure, fill = income_group)) +
   geom_density(color = "black", alpha = 0.5) +
-  scale_fill_discrete(name = NULL) +  # Remove legend title
-  labs(x = "Education expenditure (% of GDP)") +
+  scale_fill_discrete(name = NULL) 
+  labs(x = "Education expenditure in % of GDP") +
   theme(
     legend.position = "top",
     legend.justification = "center",
     legend.title = element_blank()
   )
 ```
-Analyzing the plot, we can see that there are more countries in group "High income" and "Upper middle income". Further, we can see that countries being in groups "lower middle income" and "upper middle income" spend the highest portion of their gdp for education. This makes sense, as education should be a basic need. One can also see, that a few countries from groups "High income" and "Upper middle income" are spendingbelow 2,5% of their gdp on education, while many countries from groups "Lower middle income" and "Low income" spend below 2,5% of their gdp on education.
+Analyzing the plot, we can see that there are more countries in group "High income" and "Upper middle income". Further, we can see that countries being in groups "lower middle income" and "upper middle income" spend the highest portion of their gdp for education. This makes sense, as education should be a basic need. 
+
+
+One can also see, that a few countries from groups "High income" and "Upper middle income" are spendingbelow 2,5% of their gdp on education, while many countries from groups "Lower middle income" and "Low income" spend below 2,5% of their gdp on education.
 
 ## b. Income status in different continents
 
@@ -107,6 +109,7 @@ Comment the plot.
 distribution among the different continents.
 
 ```{r stacked barplot abs freq, echo=TRUE}
+# stacked barplot with absolute frequencies with removed title of legend
 ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
   geom_bar(position = "stack") +
   labs(x = "Continent", y = "Number of Countries", fill = "Income Group") +
@@ -115,6 +118,7 @@ ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
 ```
 On the stacked barplot with absolute frequencies we can see how many countries exist in each income group on each continent. 
 ```{r stacked barplot rel freq, echo=TRUE}
+# stacked barplot with relative frequencies with removed title of legend
 ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
   geom_bar(position = "fill") +
   labs(x = "Continent", y = "Proportion", fill = "Income Group") +
@@ -124,13 +128,15 @@ ggplot(data_case_study2, aes(x = continent.x, fill = income_group)) +
 ```
 On the stacked barplot with relative frequencies we can see what the proportion of countries in each income group on each continent is.
 ```{r mosaic plot, echo=TRUE}
-# Create a contingency table
+# contingency table for mosaic plot
 tbl <- table(data_case_study2$continent.x, data_case_study2$income_group)
 
-# Mosaic plot
+# mosaic plot
 mosaicplot(tbl, main = "Income Group by Continent", xlab = "Continent", ylab = "Income Group", color = TRUE, las = 1)
 ```
 On the mosaic plot we can see how countries on each continent are split between all present income groups. The first plot shows the absolute amount of countries in each income group. THis plot is especially effective when a user needs to analyze a question with absolute numbers. The second plot plots the same, but in a relative manner. It can be used to compare the distribution of countries on each continent within each income group very fast and intuitive without computing number of countries in the brain. Each continent can be compared on its own with all other continents very effective.
+
+
 The last mosaci plot shows also the relative distribution of countries of a continent within income groups. The main message and design is similar to the stacked barplot with relative frequencies. But there are still two differences that let us reject this type of plot in the following task. Firstly, the income groups are not defined as color with a legend anymore, but on the x-axis. The percentage of relative frequencies of a country is moved to the spectator to calculated the distribution of each continent in its brain. Secondly, the axis labeling of the y-axis has moved from bottom to the top, which is an unusual place.
 
 ## c. Income status in different subcontinents
@@ -139,16 +145,16 @@ For Oceania, investigate further how the income status distribution is in the di
 Use one of the plots in b. for this purpose. Comment on the results.
 
 ```{r investigation of oceania, echo=TRUE}
-# Filter only Oceania
+# creating oceania  dataset
 oceania_data <- data_case_study2 %>% 
   filter(continent.x == "Oceania", !is.na(subcontinent.x), !is.na(income_group))
 
-# Make sure income_group is an ordered factor (from High to Low)
+# ordering incpome group data
 oceania_data$income_group <- factor(oceania_data$income_group,
                                     levels = c("High income", "Upper middle income", 
                                                "Lower middle income", "Low income"))
 
-# Plot: Relative frequencies (position = "fill")
+# plotting relative frequencies of income group distribution
 ggplot(oceania_data, aes(x = subcontinent.x, fill = income_group)) +
   geom_bar(position = "fill") +
   scale_y_continuous(labels = scales::percent_format()) +
@@ -161,7 +167,10 @@ ggplot(oceania_data, aes(x = subcontinent.x, fill = income_group)) +
         legend.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1))
 ```
-We have chosen the stacked barplot  with relative frequencies of countries, because it is a good way to compare the distribution income groups of each subcontinent. Analyzing Oceania a main continent, we can see that its Auuuuuuuuuuuuuuuuustralia and New Zealand subcontinent part has only countries that belong into the group "High income". The distribution of countries in income groups of the other three subcontinents can easily be compared by each other using that type of plot. From that, we can see fast that Micronesia has the highest proportion of high income countries and Melanesia has the lowest proportion of high income countries of those three chosen subcontinents except of "Australia and New Zealand".
+We have chosen the stacked barplot  with relative frequencies of countries, because it is a good way to compare the distribution income groups of each subcontinent. Analyzing Oceania a main continent, we can see that its Auuuuuuuuuuuuuuuuustralia and New Zealand subcontinent part has only countries that belong into the group "High income". 
+
+
+The distribution of countries in income groups of the other three subcontinents can easily be compared by each other using that type of plot. From that, we can see fast that Micronesia has the highest proportion of high income countries and Melanesia has the lowest proportion of high income countries of those three chosen subcontinents except of "Australia and New Zealand".
 ## d. Net migration in different continents
 
 * Using **ggplot2**, create parallel boxplots  showing  the distribution of the
@@ -177,13 +186,13 @@ which country in Asia constitutes the largest positive outlier.
 data_box <- data_case_study2 %>%
   filter(!is.na(continent.x), !is.na(net_migration_rate))
 
-# Create boxplot
+# boxplott by continent
 ggplot(data_box, aes(x = continent.x, y = net_migration_rate)) +
-  geom_boxplot(fill = "skyblue", color = "black", outlier.color = "red") +
+  geom_boxplot(outlier.color = "red") +
   labs(
-    title = "Distribution of Net Migration Rate by Continent",
+    title = "Distribution of net migration rate by continents",
     x = "Continent",
-    y = "Net Migration Rate (per 1,000 population)"
+    y = "Net migration rate per 1000 population"
   ) +
   theme_minimal() +
   theme(
@@ -193,7 +202,7 @@ ggplot(data_box, aes(x = continent.x, y = net_migration_rate)) +
 
 asia_data <- data_box %>% filter(continent.x == "Asia")
 
-# Calculate IQR bounds
+# calc iqr ranges
 q1 <- quantile(asia_data$net_migration_rate, 0.25, na.rm = TRUE)
 q3 <- quantile(asia_data$net_migration_rate, 0.75, na.rm = TRUE)
 iqr <- q3 - q1
@@ -201,17 +210,20 @@ iqr <- q3 - q1
 lower_bound <- q1 - 1.5 * iqr
 upper_bound <- q3 + 1.5 * iqr
 
-# Identify outliers
+# investigate outliers
 asia_outliers <- asia_data %>%
   filter(net_migration_rate < lower_bound | net_migration_rate > upper_bound)
 
-# Show largest negative and positive outlier
+# biggest positive and negative outlier
 asia_outliers %>%
   arrange(net_migration_rate) %>%
   select(country.x, net_migration_rate) %>%
   slice(c(1, n()))
 ```
+Comparing the boxplots with each other, we can see that oceania has the biggest proportion of people migrating from its continent. Asia has most widely distributed outliers to both positive and negative borders of net migration rate. 
 
+
+We calculated both outliers, the largest positive one and the largest negative one. The negative outlier was Lebanon, which says many people could be migrating from Lebanon. The positive outlier is Syria, which means that many people could be migrating to Syria.
 
 ## e. Net migration in different subcontinents
 
@@ -230,14 +242,14 @@ using again parallel boxplots.  Group the boxplots by continent (hint: use `face
 migration_data <- data_case_study2 %>%
   filter(!is.na(continent.x), !is.na(subcontinent.x), !is.na(net_migration_rate))
 
-# Plot
+# boxplott by subcontinent
 ggplot(migration_data, aes(x = subcontinent.x, y = net_migration_rate)) +
   geom_boxplot(fill = "lightblue", color = "black", outlier.color = "red") +
   facet_grid(. ~ continent.x, scales = "free_x", space = "free_x") +
   labs(
-    title = "Net Migration Rate by Subcontinent (Grouped by Continent)",
-    x = "Subcontinent",
-    y = "Net Migration Rate (per 1,000 population)"
+    title = "Net migration rate by subcontinent (grouped by continent)",
+    x = "subcontinent",
+    y = "Net migration rate (per 1,000 population)"
   ) +
   theme_minimal() +
   theme(
@@ -246,6 +258,13 @@ ggplot(migration_data, aes(x = subcontinent.x, y = net_migration_rate)) +
     plot.title = element_text(face = "bold", hjust = 0.5)
   )
 ```
+On the boxplots showing the net migration rate for each subcontinent, we can see that there is a flow between oceanian subcontinents that indicates a regional movement especially from Micronesia and Polynesia (lowest net migration rate) to Australia and New Zealand (largest net migration rate in considering continent Oceania and overall!). The people from *Micronesia* and *Polynesia* could also move to other continents, while poeple from other continents could move to Australia and New Zealand. So, to justify that hypothesis, we would need to know the connections of those movements. 
+
+
+Further, we can see that *Polynesia*, *Micronesia* and *Western Asia* have a huge variation  due to wide interquartile ranges. 
+
+
+We also can see that Latin America and the Carribean and Sub-Sahara Africa have the most outliers which are not extreme, but clustered in similarly closely in both the positive and negative direction from the median.
 
 ## f. Median net migration rate per subcontinent.
 
