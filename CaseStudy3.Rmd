@@ -1,5 +1,6 @@
 ---
 title: "Case Study 3: Visualization"
+author: "Group26 - Jonas Kruse, Sergej Bensack, Niklas Kessler"
 subtitle: "AKSTA Statistical Computing"
 output: 
   html_document
@@ -8,11 +9,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
-
-*The  .Rmd* **and** *.html (or .pdf) should be uploaded in TUWEL by the deadline. Refrain from using explanatory comments in the R code chunks but write them as text instead. Points will be deducted if the submitted file is not in a decent form.*
-
-**DISCLAIMER**: In case students did not contribute equally, include a disclaimer stating what each student's contribution was.
-
 
  
 # Data
