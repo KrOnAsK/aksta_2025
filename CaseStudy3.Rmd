@@ -2,7 +2,7 @@
 title: "Case Study 3: Visualization"
 subtitle: "AKSTA Statistical Computing"
 output: 
-  html_document
+  pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -269,79 +269,51 @@ We also can see that Latin America and the Carribean and Sub-Sahara Africa have 
 
 ## f. Median net migration rate per subcontinent.
 
-The plot in task e. shows the distribution of the net migration rate for each 
-subcontinent. Here you will work on visualizing only one summary statistic, namely 
-the median. 
-
-For each subcontinent, calculate the median net migration rate. Then create a plot which
-contains the sub-regions on the y-axis and the median net migration rate on 
-the x-axis. 
-
-  * As geoms use points. 
-  
-  *  Color the points by continent -- use a colorblind friendly palette (see e.g., 
-  [here](http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/)).
-  
-  * Rename the axes.
-  
-  * Using `fct_reorder` from the **forcats** package, arrange the levels of subcontinent
-  such that in the plot the lowest (bottom) subcontinent contains the lowest median
-  net migration
-  rate and the upper most region contains the highest median
-  net migration
-  rate.
-  
-  * Comment on the plot. E.g., what are the regions with the most influx? 
-  What are the regions with the most outflux?
-
 ```{r}
-# Calculate median youth unemployment rate per subcontinent
-median_unemployment_subcontinent <- data_case_study2 %>%
-  filter(!is.na(subcontinent.x) & !is.na(youth_unempl_rate) & !is.na(continent.x)) %>%
-  group_by(continent.x, subcontinent.x) %>%
-  summarise(median_youth_unemployment = median(youth_unempl_rate, na.rm = TRUE), .groups = 'drop')
 
-# Create the bar plot
-ggplot(median_unemployment_subcontinent, aes(x = median_youth_unemployment, y = fct_reorder(subcontinent.x, median_youth_unemployment))) +
-  geom_bar(aes(fill = continent.x), stat = "identity", alpha = 0.7) +
-  scale_fill_brewer(palette = "Paired") + # Another example of a colorblind-friendly palette
+median_migration_subcontinent <- data_case_study2 %>%
+  filter(!is.na(subcontinent.x) & subcontinent.x != "" & 
+         !is.na(net_migration_rate) & 
+         !is.na(continent.x) & continent.x != "") %>%
+  group_by(continent.x, subcontinent.x) %>%
+  summarise(median_net_migration = median(net_migration_rate, na.rm = TRUE), .groups = 'drop') %>%
+  filter(!is.na(median_net_migration)) # Remove rows where median couldn't be calculated (e.g. all NAs)
+
+
+ggplot(median_migration_subcontinent, 
+       aes(x = median_net_migration, 
+           y = fct_reorder(subcontinent.x, median_net_migration))) +
+  geom_point(aes(color = continent.x), size = 3) + # 'size' makes points more visible
+  scale_color_brewer(palette = "Set2", name = "Continent") + # Using a colorblind-friendly palette
   labs(
-    title = "Median Youth Unemployment Rate by Subcontinent",
-    x = "Median Youth Unemployment Rate (%)",
-    y = "Subcontinent",
-    fill = "Continent"
+    title = "Median Net Migration Rate by Subcontinent",
+    x = "Median Net Migration Rate (per 1,000 population)",
+    y = "Subcontinent"
+    # Legend title is set via scale_color_brewer's name argument
   ) +
-  theme_bw() +
+  theme_minimal() + # A clean theme
   theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    axis.text.y = element_text(size = 8) # Adjust y-axis text size if needed
+    plot.title = element_text(hjust = 0.5, face = "bold"), # Center title and make it bold
+    axis.text.y = element_text(size = 8) # Adjust y-axis text if subregion names are long or many
   )
 ```
+
+Regions with the most influx: Australia and New Zealand (Oceania) exhibits the highest median net migration rate, indicating it is the subcontinent with the most significant influx of people among those plotted. Western Europe, Northern Europe (both Europe), and Northern America (Americas) also show notable positive median net migration rates, signifying substantial population inflows. Eastern Europe (Europe) also has a positive median net migration rate.
+
+Regions with the most outflux: Micronesia and Polynesia (both Oceania) show the lowest (most negative) median net migration rates, indicating these regions experience the most significant outflux of people. Central Asia (Asia) and Melanesia (Oceania) also have negative median net migration rates, suggesting a net outflow of population. Latin America and the Caribbean (Americas) also shows a negative median net migration rate.
+General Observations:
+
+European subcontinents (Western, Northern, Eastern, Southern Europe) generally show positive net migration, with Southern Europe being close to zero but still positive.
+Oceanian subcontinents show a strong divergence: Australia and New Zealand has the highest influx, while Micronesia, Polynesia, and Melanesia all experience outflux.
+Asian subcontinents (Eastern Asia, Western Asia, South-eastern Asia, Southern Asia, Central Asia) are mostly clustered around a zero net migration rate or show a slight outflux (Central Asia, Southern Asia) or slight influx (Eastern Asia, Western Asia, South-eastern Asia).
+African subcontinents (Sub-Saharan Africa, Northern Africa) are also positioned near a zero net migration rate.
+The Americas show a contrast, with Northern America experiencing influx and Latin America and the Caribbean experiencing outflux.
+
 
 
 
 ## g. Median youth unemployment rate per subcontinent
 
-For each subcontinent, calculate the median youth unemployment rate. Then create a plot which
-contains the sub-regions on the y-axis and the median unemployment rate on 
-the x-axis. 
-
-  * Use a black and white theme (`?theme_bw()`)
-  
-  * As geoms use bars. (hint: pay attention to the statistical transformation taking place
-  in `geom_bar()` -- look into  argument `stat="identity"`) 
-  
-  * Color the bars by continent -- use a colorblind friendly palette.
-  
-  * Make the bars transparent (use `alpha = 0.7`).
-  
-  * Rename the axes.
-  
-  * Using `fct_reorder` from the **forcats** package, arrange the levels of subcontinent
-  such that in the plot the lowest (bottom) subcontinent contains the lowest median
-  youth unemployment rate and the upper most region contains the highest median
-  youth unemployment rate.
-  
   * Comment on the plot. E.g., what are the regions with the highest vs lowest youth
   unemployment rate?
 ```{r}
@@ -367,15 +339,17 @@ ggplot(median_unemployment_subcontinent, aes(x = median_youth_unemployment, y = 
     axis.text.y = element_text(size = 8) # Adjust y-axis text size if needed
   )
 ```
+The bar chart displays the median youth unemployment rate for various subcontinents. The bars are colored by continent and are ordered along the y-axis from the subcontinent with the lowest median youth unemployment rate at the bottom to the one with the highest rate at the top.
+
+Regions with the highest youth unemployment rate: Northern Africa (Africa) shows the highest median youth unemployment rate, exceeding 30%. Polynesia (Oceania) follows with a rate around 30%, and Southern Europe (Europe) also has a notably high rate, above 25%.
+Regions with the lowest youth unemployment rate: Eastern Asia and Central Asia (both Asia) exhibit the lowest median youth unemployment rates, appearing to be below 10%. South-eastern Asia (Asia) and Melanesia (Oceania) also show relatively low rates.
+General Observations:
+Asian subcontinents (Eastern Asia, Central Asia, South-eastern Asia) predominantly feature at the lower end of the youth unemployment scale.
+African subcontinents, particularly Northern Africa, along with parts of Oceania (Polynesia, Micronesia) and Southern Europe, are positioned towards the higher end.
+The Americas (Latin America and the Caribbean, Northern America) and other European subcontinents (Eastern Europe, Western Europe, Northern Europe) fall into the middle to lower-middle range of median youth unemployment rates. Australia and New Zealand (Oceania) also falls into this middle range.
 
 
 ## h. Median youth unemployment rate per subcontinent -- with error bars
-
-The value displayed in the barplot in g. is the result of an aggregation, 
-so it might be useful to also plot error bars, to have a general idea on
-how precise the median unemployment is. This can be achieved by plotting the
-error bars which reflect the standard deviation or the interquartile range of 
-the variable in each of the subcontinents. 
 
 Repeat the plot from Task g. but include also error bars which reflect the 25% and 75%
 quantiles. You can use `geom_errorbar` in **ggplot2**.
@@ -410,6 +384,14 @@ ggplot(quantile_unemployment_subcontinent, aes(x = median_youth_unemployment, y 
 
 ```
 
+This bar chart enhances the previous plot from task g by incorporating error bars that represent the interquartile range (IQR) – the range between the 25th and 75th percentiles – for youth unemployment within each subcontinent. These error bars provide insight into the variability and precision of the median youth unemployment rates.
+
+Precision of Medians and Variability:
+Subcontinents such as Eastern Asia, Central Asia, and South-eastern Asia (all Asia) display relatively short error bars. This suggests that the youth unemployment rates among countries within these subcontinents are fairly consistent, making the median a precise representation of the typical rate. Australia and New Zealand (Oceania) and Northern Europe (Europe) also show comparably short error bars.
+Conversely, Polynesia (Oceania) exhibits a very long error bar, indicating a wide dispersion in youth unemployment rates among its constituent countries; the median, while high, does not capture the full spectrum of experiences, with some countries likely having much lower or even higher rates.
+Northern Africa (Africa), which has the highest median, also shows a substantial error bar, implying considerable variation within the subcontinent. Similarly, Latin America and the Caribbean (Americas), Sub-Saharan Africa (Africa), Micronesia (Oceania), and Southern Europe (Europe) have noticeable error bars, reflecting a broader range of youth unemployment rates.
+Impact on Interpretation: The error bars confirm that while some subcontinents have high median youth unemployment, the actual rates can vary significantly from country to country within those subcontinents (e.g., Polynesia, Northern Africa). For regions with shorter error bars (e.g., Eastern Asia), the median value is a more robust indicator of the general situation across the subcontinent. This added information on variability is crucial for a more nuanced understanding beyond just the central tendency.
+
 ## i. Relationship between education expenditure and net migration rate
 
 Using **ggplot2**, create a plot showing the relationship between education expenditure and
@@ -423,23 +405,43 @@ Comment on the plot. Do you see any relationship between the two variables? Do y
 any difference among the income levels?
 
 ```{r}
+ # Ensure income_group is an ordered factor if not already
+data_case_study2$income_group <- factor(
+data_case_study2$income_group,
+levels = c("High income", "Upper middle income", "Lower middle income", "Low income")
+ )
+
 # Create the scatter plot
-ggplot(data_case_study2, aes(x = education_expenditure, y = net_migration_rate)) +
-  geom_point(aes(color = income_group), alpha = 0.7) + # Added alpha for better visibility of overlapping points
-  geom_smooth(aes(color = income_group, fill = income_group), method = "lm", se = TRUE, alpha = 0.1) + # Added fill for SE ribbon and alpha
-  scale_color_brewer(palette = "Dark2", name = "Income Status") + # Consistent naming for legend
-  scale_fill_brewer(palette = "Dark2", name = "Income Status") +  # Consistent naming for legend
-  labs(
-    title = "Education Expenditure vs. Net Migration Rate by Income Status",
-    x = "Education Expenditure (% of GDP)",
-    y = "Net Migration Rate (per 1,000 population)"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    legend.position = "top"
-  )
+ggplot(data_case_study2 %>% filter(!is.na(education_expenditure) & !is.na(net_migration_rate) & !is.na(income_group)),
+      aes(x = education_expenditure, y = net_migration_rate)) +
+ geom_point(aes(color = income_group), alpha = 0.7) +
+ geom_smooth(aes(color = income_group, fill = income_group), method = "lm", se = TRUE, alpha = 0.1) + # Use fill for SE ribbon
+ scale_color_brewer(palette = "Dark2", name = "Income Status") +
+ scale_fill_brewer(palette = "Dark2", name = "Income Status") + # Ensure fill matches color for consistent legend
+ labs(
+   title = "Education Expenditure vs. Net Migration Rate by Income Status",
+   x = "Education Expenditure (% of GDP)",
+   y = "Net Migration Rate (per 1,000 population)"
+ ) +
+ theme_minimal() +
+ theme(
+   plot.title = element_text(hjust = 0.5, face = "bold"),
+   legend.position = "top" # Or "bottom", "left", "right" as preferred
+ )
 ```
+This scatter plot visualizes the relationship between education expenditure (as a percentage of GDP) and the net migration rate (per 1,000 population). Individual countries are represented as points, colored according to their income status, and a linear regression line with a confidence interval is shown for each income group.
+
+Relationship between variables and differences among income levels:
+
+High income (green): For high-income countries, there appears to be a weak negative relationship. The regression line shows a slight downward slope, suggesting that as education expenditure increases, the net migration rate tends to decrease very modestly. These countries generally exhibit higher education expenditure (mostly between 2.5% and 7.5% of GDP) and have a wide range of net migration rates, many of which are positive.
+Upper middle income (orange): The regression line for upper-middle-income countries is nearly flat and close to a zero net migration rate. This indicates very little to no linear relationship between education expenditure and net migration for this group. The points are somewhat clustered, showing generally lower education expenditure than high-income countries.
+Lower middle income (grey/purple): Similar to upper-middle-income countries, the regression line is relatively flat, hovering slightly below zero for net migration. This suggests no strong linear association between the two variables for this income category.
+Low income (pink): The regression line for low-income countries is also quite flat and very close to a zero net migration rate, indicating no clear linear relationship. These countries tend to have lower education expenditure. One outlier with very high education expenditure (around 12.5% of GDP) and a negative net migration rate is visible in this group.
+Overall Observations:
+
+There isn't a strong, uniform relationship between education expenditure and net migration rate that applies across all income levels.
+High-income countries show the widest spread in both variables and a slight negative trend. The other three income groups (Upper middle, Lower middle, and Low income) generally have lower and less variable education expenditure, and their regression lines are flatter and closer to a zero net migration rate, indicating a weaker or non-existent linear relationship within these groups. The confidence intervals for the regression lines, particularly for the non-high-income groups, are relatively wide, suggesting considerable uncertainty about the precise slope of the relationship.
+
 ## j. Relationship between youth unemployment and net migration rate
 
 Create a plot as in Task i. but for youth unemployment and net migration rate. Comment briefly.
@@ -462,7 +464,11 @@ ggplot(data_case_study2, aes(x = youth_unempl_rate, y = net_migration_rate)) +
     legend.position = "top"
   )
 ```
+This scatter plot displays the relationship between youth unemployment rate and net migration rate, with countries color-coded by income status and individual regression lines fitted for each group.
 
+For High income (green), Upper middle income (orange), and Lower middle income (grey/purple) countries, there is a general tendency for the regression lines to show a slight negative slope. This suggests that higher youth unemployment rates may be associated with lower net migration rates (or greater outflux) in these groups, though the relationship appears relatively weak for high and upper-middle-income countries, and slightly more pronounced for lower-middle-income countries.
+For Low income countries (pink), the regression line is nearly flat or shows a very slight positive slope, indicating little to no linear relationship, or perhaps a marginal tendency for higher youth unemployment to be associated with slightly higher net migration, which contrasts with the other income groups.
+Overall, the points are quite dispersed, particularly for the low-income group, and the confidence intervals around the regression lines are wide, suggesting that youth unemployment is likely one of many factors influencing net migration and its impact varies across income levels.
 
 ## k. Merging population data
 
