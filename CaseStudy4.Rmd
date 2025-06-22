@@ -11,7 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-# Load necessary libraries
 library(shiny)
 library(ggplot2)
 library(plotly)
@@ -19,26 +18,24 @@ library(dplyr)
 library(jsonlite)
 library(countrycode)
 
-# Load the CIA factbook data from the JSON file 
+# Load CIA factbook data from json file
 cia_data <- fromJSON("data_cia2.json")
 
-# Load world map data from ggplot2 
+# world map data from ggplot2 
 world_map <- map_data("world")
 ```
 
 ```{r}
-# Add an ISO3 code column to the world_map data for joining 
-# The `nomatch = NA` argument ensures that countries not found are assigned NA.
+# Add ISO3 code column to world_map data (for join), no match will get NA
 world_map$ISO3 <- countrycode(world_map$region, origin = "country.name", destination = "iso3c", nomatch = NA)
 
-# Perform a left join to merge map data with CIA data 
-# This keeps all map coordinates and adds CIA data where countries match.
+# left join: merge map data with CIA data 
+# -> keeps all map coordinates and adds CIA data where countries match.
 map_data_full <- left_join(world_map, cia_data, by = "ISO3")
 ```
 # Sidebar Logic
 ```{r}
-# Define a named vector for variable choices for easier mapping
-# This helps in making the UI "user-friendly"
+# Define named vector for variable choices -> easier mapping, make UI more "user-friendly"
 variable_choices <- c(
   "Expenditure on education" = "expenditure",
   "Youth unemployment rate" = "youth_unempl_rate",
@@ -48,38 +45,33 @@ variable_choices <- c(
   "Life expectancy" = "life_expectancy"
 )
 
-# --- UI Definition ---
+# UI Definition
 ui <- fluidPage(
   titlePanel("CIA World Factbook 2020"),
   p("Welcome to my shiny app, which allows you to visualize variables from the CIA 2020 factbook on the world map, generate descriptive statistics and statistical graphics."),
 
   tabsetPanel(
     id = "main_tabs",
-    # --- UNIVARIATE ANALYSIS TAB ---
+    # UNIVARIATE ANALYSIS
     tabPanel("Univariate analysis",
       sidebarLayout(
-        # --- Sidebar for Univariate analysis ---
+        # Sidebar Univariate analysis
         sidebarPanel(
           width = 3,
           h4("Univariate Analysis Controls"),
-          # Dropdown to select a single variable
-          selectInput("univar_variable", 
-                      "Select a variable:",
-                      choices = variable_choices),
-          
-          hr(), # horizontal line for separation
-          
-          # Action button to view the raw data
+          selectInput("univar_variable", "Select a variable:", choices = variable_choices),
+          hr(),
           actionButton("view_data_button", "View raw data"),
-          
-          # The output for the data table
-          DT::DTOutput("univar_data_table")
+          DT::DTOutput("univar_data_table"),
+          hr()
         ),
-        # Main panel for Univariate plots will go here...
+        # Main panel Univariate analysis
         mainPanel(
           width = 9,
           tabsetPanel(
-            tabPanel("Map", plotlyOutput("map_plot", height = "600px")),
+            tabPanel("Map", 
+                     p("The map contains values of the selected variables. The countries with gray areas have a missing value for the visualized variable."),
+                     plotlyOutput("map_plot", height = "600px")),
             tabPanel("Global analysis", 
                      fluidRow(
                        column(6, plotlyOutput("global_hist_density")),
@@ -94,24 +86,24 @@ ui <- fluidPage(
         )
       )
     ),
-    # --- MULTIVARIATE ANALYSIS TAB ---
+    # MULTIVARIATE ANALYSIS TAB 
     tabPanel("Multivariate analysis",
       sidebarLayout(
-        # --- Sidebar for Multivariate analysis ---
+        # Sidebar Multivariate analysis
         sidebarPanel(
           width = 3,
           h4("Multivariate Analysis Controls"),
-          # Selection input for the first variable (Y-axis)
+          # Selection input for the first variable (X-axis)
           selectInput("multivar_variable1",
-                      "Select variable 1 (Y-axis):",
-                      choices = variable_choices,
-                      selected = "youth_unempl_rate"),
-                      
-          # Selection input for the second variable (X-axis)
-          selectInput("multivar_variable2",
-                      "Select variable 2 (X-axis):",
+                      "Select variable 1 (X-axis):",
                       choices = variable_choices,
                       selected = "expenditure"),
+                      
+          # Selection input for the second variable (Y-axis)
+          selectInput("multivar_variable2",
+                      "Select variable 2 (Y-axis):",
+                      choices = variable_choices,
+                      selected = "youth_unempl_rate"),
 
           # Selection input to determine point size
           selectInput("size_variable",
@@ -119,7 +111,7 @@ ui <- fluidPage(
                       choices = c("Population" = "population",
                                   "Area" = "area"))
         ),
-        # Main panel for the scatterplot will go here...
+        # Main panel Scatterplot
         mainPanel(
           width = 9,
           plotlyOutput("multivar_scatterplot", height = "600px")
@@ -133,9 +125,10 @@ ui <- fluidPage(
 ```{r}
 server <- function(input, output, session) {
 
-  # --- 1. Initial Data Loading and Preparation ---
-  
-  # Load CIA data from the JSON file 
+  # Data Loading and Preparation
+  #-----------------------------
+
+  # Load CIA data from JSON file 
   cia_data <- fromJSON("data_cia2.json")
 
   # Load world map data from ggplot2 
@@ -148,9 +141,9 @@ server <- function(input, output, session) {
   map_data_full <- left_join(world_map, cia_data, by = "ISO3")
 
 
-  # --- 2. Reactive Expressions ---
-  
-  # Reactive expression for the selected univariate variable name (for labels)
+  # 2. Reactive Expressions
+  #-------------------------
+  # Reactive expression for selected univariate variable name (for labels)
   univar_friendly_name <- reactive({
     names(variable_choices)[variable_choices == input$univar_variable]
   })
@@ -168,16 +161,15 @@ server <- function(input, output, session) {
   })
 
 
-  # --- 3. Univariate Analysis Outputs ---
-
-  # Output for the interactive world map 
+  # Univariate Analysis Outputs
+#-------------------------------
+  # Output for interactive world map 
   output$map_plot <- renderPlotly({
     p <- ggplot(map_data_full, aes(x = long, y = lat, group = group,
-                                 # Custom tooltip text 
+                                 # tooltip text 
                                  text = paste(region, "<br>", univar_friendly_name(), ": ", .data[[input$univar_variable]]))) +
-      # Fill color is mapped to the selected variable 
       geom_polygon(aes(fill = .data[[input$univar_variable]]), color = "white", linewidth = 0.1) +
-      # Use viridis color scale and set gray for missing values 
+      # viridis color scale, grey for missing values 
       scale_fill_viridis_c(na.value = "grey") +
       labs(title = paste("World Map of", univar_friendly_name()), fill = univar_friendly_name()) +
       theme_void()
@@ -191,27 +183,26 @@ server <- function(input, output, session) {
   }, options = list(pageLength = 15), # Show max 15 rows 
      rownames = FALSE)
 
-  # Output for the global histogram and density plot 
+  # output for global histogram and density plot 
   output$global_hist_density <- renderPlotly({
     p <- ggplot(cia_data, aes(x = .data[[input$univar_variable]])) +
-      geom_histogram(aes(y = after_stat(density)), fill = "lightblue", color = "grey", alpha = 0.7) +
-      geom_density(color = "darkblue", linewidth = 1) +
+      geom_histogram(aes(y = after_stat(density)), fill = "grey", color = "white", alpha = 1) +
+      geom_density(color = "darkgrey", fill="darkblue", alpha=0.4, linewidth = 1) +
       labs(title = paste("Global Distribution of", univar_friendly_name()), x = univar_friendly_name(), y = "Density") +
       theme_minimal()
     ggplotly(p)
   })
 
-  # Output for the global boxplot 
+  # output for global boxplot 
   output$global_boxplot <- renderPlotly({
     p <- ggplot(cia_data, aes(y = .data[[input$univar_variable]])) +
-      geom_boxplot(fill = "lightblue", color = "darkblue") +
-      coord_flip() + # Flip coordinates for horizontal boxplot
+      geom_boxplot(fill = "white", color = "black") +
       labs(title = paste("Global Boxplot of", univar_friendly_name()), y = univar_friendly_name(), x = "") +
       theme_minimal()
     ggplotly(p)
   })
 
-  # Output for the density plot grouped by continent 
+  # output for density plot grouped by continent 
   output$continent_density <- renderPlotly({
     p <- ggplot(cia_data, aes(x = .data[[input$univar_variable]], fill = continent)) +
       geom_density(alpha = 0.5) +
@@ -220,7 +211,7 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  # Output for the boxplot grouped by continent 
+  # output for boxplot grouped by continent 
   output$continent_boxplot <- renderPlotly({
     p <- ggplot(cia_data, aes(x = continent, y = .data[[input$univar_variable]], fill = continent)) +
       geom_boxplot() +
@@ -231,16 +222,16 @@ server <- function(input, output, session) {
   })
 
 
-  # --- 4. Multivariate Analysis Outputs ---
-
-  # Output for the interactive scatterplot 
+  # Multivariate Analysis Outputs
+#--------------------------------
+  # Output for  interactive scatterplot 
   output$multivar_scatterplot <- renderPlotly({
     # Get friendly names for labels
     var1_name <- names(variable_choices)[variable_choices == input$multivar_variable1]
     var2_name <- names(variable_choices)[variable_choices == input$multivar_variable2]
     size_name <- names(c("population" = "Population", "area" = "Area"))[c("population", "area") == input$size_variable]
 
-    p <- ggplot(cia_data, aes(x = .data[[input$multivar_variable2]], y = .data[[input$multivar_variable1]])) +
+    p <- ggplot(cia_data, aes(x = .data[[input$multivar_variable1]], y = .data[[input$multivar_variable2]])) +
       geom_point(aes(color = continent, 
                      size = .data[[input$size_variable]],
                      text = paste("Country:", country,
@@ -249,13 +240,13 @@ server <- function(input, output, session) {
                                   "<br>", size_name, ":", .data[[input$size_variable]]))) +
       geom_smooth(aes(color = continent), method = "loess", se = FALSE, formula = 'y ~ x') +
       labs(title = paste(var1_name, "vs.", var2_name),
-           x = var2_name,
-           y = var1_name,
+           x = var1_name,
+           y = var2_name,
            color = "Continent",
            size = size_name) +
       theme_minimal()
     
-    # Convert to ggplotly, specifying the custom tooltip text
+    # Convert to ggplotly
     ggplotly(p, tooltip = "text")
   })
 }
